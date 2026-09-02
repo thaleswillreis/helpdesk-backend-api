@@ -4,9 +4,9 @@ from collections.abc import Generator
 
 from sqlmodel import Session, create_engine
 
-DATABASE_URL = "sqlite:///./helpdesk.db"
+from app.core.config import settings
 
-engine = create_engine(DATABASE_URL, echo=False)
+engine = create_engine(settings.database_url, echo=False)
 
 
 def get_session() -> Generator[Session, None, None]:

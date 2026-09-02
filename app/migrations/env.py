@@ -1,4 +1,4 @@
-from app.core.database import DATABASE_URL
+from app.core.config import settings
 from app.models.role import Role  # noqa: F401 - necessário para o Alembic detectar a tabela
 from app.models.user import User  # noqa: F401 - necessário para o Alembic detectar a tabela
 
@@ -26,7 +26,7 @@ if config.config_file_name is not None:
 # target_metadata = mymodel.Base.metadata
 target_metadata = SQLModel.metadata
 
-config.set_main_option("sqlalchemy.url", DATABASE_URL)
+config.set_main_option("sqlalchemy.url", settings.database_url)
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
