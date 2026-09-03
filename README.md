@@ -56,7 +56,7 @@ A API estará disponível em `http://127.0.0.1:8000`, com documentação interat
 O projeto está sendo construído de forma incremental, seguindo um backlog dividido em fases:
 
 - [x] Fase 0 — Fundamentos e setup do projeto *(em andamento)*
-- [ ] Fase 1 — Identidade e acesso
+- [x] Fase 1 — Identidade e acesso
 - [ ] Fase 2 — Gestão de chamados
 - [ ] Fase 3 — Atendimento
 - [ ] Fase 4 — SLA

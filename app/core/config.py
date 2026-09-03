@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     postgres_port: int = 5432
     test_postgres_db: str = "helpdesk_test"
 
+    secret_key: str = "changeme-please-generate-a-random-secret"
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 7
+
     @property
     def database_url(self) -> str:
         """Monta a URL de conexão do SQLAlchemy/SQLModel a partir das partes."""
