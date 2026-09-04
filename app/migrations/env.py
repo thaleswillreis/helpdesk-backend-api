@@ -1,6 +1,5 @@
 from app.core.config import settings
-from app.models.role import Role  # noqa: F401 - necessário para o Alembic detectar a tabela
-from app.models.user import User  # noqa: F401 - necessário para o Alembic detectar a tabela
+import app.models
 
 from logging.config import fileConfig
 

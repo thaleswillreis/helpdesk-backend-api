@@ -4,6 +4,8 @@ from collections.abc import Generator
 
 from sqlmodel import Session, create_engine
 
+import app.models  # noqa: F401 - garante que todos os modelos sejam registrados
+
 from app.core.config import settings
 
 engine = create_engine(settings.database_url, echo=False)
