@@ -15,6 +15,11 @@ class User(SQLModel, table=True):
     email: str = Field(unique=True, index=True, max_length=255)
     hashed_password: str
     is_active: bool = Field(default=True)
+    is_vip: bool = Field(
+        default=False,
+        description="Usuário VIP (ex.: diretoria/conselho) — chamados abertos por ele "
+        "recebem automaticamente prioridade VIP.",
+    )
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     role_id: int | None = Field(default=None, foreign_key="role.id")

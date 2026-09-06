@@ -12,8 +12,13 @@ class TicketCreate(BaseModel):
 
     title: str = Field(max_length=200)
     description: str
-    priority: PrioridadeChamado
-    category: str = Field(max_length=100)
+    category_id: int
+    subcategory_id: int | None = None
+    priority: PrioridadeChamado | None = Field(
+        default=None,
+        description="Se omitido, usa a prioridade padrão da categoria "
+        "(ou 'vip', automaticamente, se o solicitante for VIP).",
+    )
     requester_id: int | None = Field(
         default=None,
         description="Solicitante do chamado. Se omitido, assume o usuário autenticado. "
@@ -28,7 +33,8 @@ class TicketUpdate(BaseModel):
     description: str | None = None
     status: StatusChamado | None = None
     priority: PrioridadeChamado | None = None
-    category: str | None = Field(default=None, max_length=100)
+    category_id: int | None = None
+    subcategory_id: int | None = None
     assigned_to: int | None = None
 
 
@@ -42,7 +48,8 @@ class TicketRead(BaseModel):
     description: str
     status: StatusChamado
     priority: PrioridadeChamado
-    category: str
+    category_id: int
+    subcategory_id: int | None
     requester_id: int
     assigned_to: int | None
     created_at: datetime

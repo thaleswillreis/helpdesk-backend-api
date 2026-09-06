@@ -8,9 +8,11 @@ from app.core.dependencies import get_current_user, require_role
 from app.models.user import User
 from app.schemas.ticket import TicketCreate, TicketRead, TicketUpdate
 from app.services.ticket_service import (
+    CategoryNotFoundError,
     ForbiddenTicketAccessError,
     InvalidAssigneeError,
     InvalidRequesterError,
+    SubcategoryMismatchError,
     TicketNotFoundError,
     create_ticket,
     get_ticket,
@@ -32,7 +34,7 @@ def open_ticket(
         ticket = create_ticket(session, data, current_user)
     except ForbiddenTicketAccessError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
-    except InvalidRequesterError as exc:
+    except (InvalidRequesterError, CategoryNotFoundError, SubcategoryMismatchError) as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
         ) from exc
@@ -79,7 +81,7 @@ def edit_ticket(
         ticket = update_ticket(session, ticket_id, data)
     except TicketNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    except InvalidAssigneeError as exc:
+    except (InvalidAssigneeError, CategoryNotFoundError) as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
         ) from exc

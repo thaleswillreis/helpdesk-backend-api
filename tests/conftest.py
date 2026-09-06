@@ -56,13 +56,14 @@ def make_user(session: Session):
     from app.models.role import Role
     from app.models.user import User
 
-    def _make_user(email: str, password: str, role_name: str) -> User:
+    def _make_user(email: str, password: str, role_name: str, is_vip: bool = False) -> User:
         role = session.exec(select(Role).where(Role.name == role_name)).first()
         user = User(
             name=f"Usuário {role_name}",
             email=email,
             hashed_password=hash_password(password),
             role_id=role.id if role else None,
+            is_vip=is_vip,
         )
         session.add(user)
         session.commit()
@@ -98,3 +99,17 @@ def auth_headers(client: TestClient):
         return {"Authorization": f"Bearer {token}"}
 
     return _auth_headers
+
+@pytest.fixture
+def make_category(session: Session):
+    """Factory de categoria de teste."""
+    from app.models.category import Category
+
+    def _make_category(name: str, default_priority: str = "media") -> Category:
+        category = Category(name=name, default_priority=default_priority)
+        session.add(category)
+        session.commit()
+        session.refresh(category)
+        return category
+
+    return _make_category

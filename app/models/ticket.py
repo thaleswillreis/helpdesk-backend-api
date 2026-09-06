@@ -4,7 +4,9 @@ from datetime import UTC, datetime
 
 from sqlmodel import Field, Relationship, SQLModel
 
+from app.models.category import Category
 from app.models.enums import PrioridadeChamado, StatusChamado
+from app.models.subcategory import Subcategory
 from app.models.user import User
 
 
@@ -18,9 +20,11 @@ class Ticket(SQLModel, table=True):
     status: StatusChamado = Field(default=StatusChamado.ABERTO, index=True)
     priority: PrioridadeChamado = Field(index=True)
 
-    # Campo temporário como texto livre; será normalizado na Tarefa 2.3
-    # (categorias e subcategorias estruturadas).
-    category: str = Field(max_length=100)
+    category_id: int = Field(foreign_key="category.id")
+    category: Category = Relationship()
+
+    subcategory_id: int | None = Field(default=None, foreign_key="subcategory.id")
+    subcategory: Subcategory | None = Relationship()
 
     requester_id: int = Field(foreign_key="user.id")
     requester: User = Relationship(
