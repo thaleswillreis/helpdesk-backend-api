@@ -7,6 +7,7 @@ from app.core.database import get_session
 from app.core.dependencies import get_current_user, require_role
 from app.models.user import User
 from app.schemas.ticket import TicketCreate, TicketRead, TicketUpdate
+from app.schemas.ticket_history import TicketHistoryRead
 from app.services.ticket_service import (
     CategoryNotFoundError,
     ForbiddenTicketAccessError,
@@ -16,6 +17,7 @@ from app.services.ticket_service import (
     TicketNotFoundError,
     create_ticket,
     get_ticket,
+    get_ticket_history,
     list_tickets,
     update_ticket,
 )
@@ -74,11 +76,11 @@ def edit_ticket(
     ticket_id: int,
     data: TicketUpdate,
     session: Session = Depends(get_session),
-    _staff: User = Depends(require_role("admin", "tecnico")),
+    staff: User = Depends(require_role("admin", "tecnico")),
 ) -> TicketRead:
     """Atualiza um chamado. Restrito a admin/tecnico."""
     try:
-        ticket = update_ticket(session, ticket_id, data)
+        ticket = update_ticket(session, ticket_id, data, staff)
     except TicketNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except (InvalidAssigneeError, CategoryNotFoundError) as exc:
@@ -87,3 +89,18 @@ def edit_ticket(
         ) from exc
 
     return TicketRead.model_validate(ticket)
+
+
+@router.get("/{ticket_id}/history", response_model=list[TicketHistoryRead])
+def read_ticket_history(
+    ticket_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> list[TicketHistoryRead]:
+    """Consulta o histórico de alterações de um chamado."""
+    try:
+        history = get_ticket_history(session, ticket_id, current_user)
+    except TicketNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+    return [TicketHistoryRead.model_validate(entry) for entry in history]

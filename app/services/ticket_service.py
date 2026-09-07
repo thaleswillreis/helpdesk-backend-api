@@ -9,6 +9,7 @@ from app.models.category import Category
 from app.models.enums import STATUS_ENCERRADOS, PrioridadeChamado, StatusChamado
 from app.models.subcategory import Subcategory
 from app.models.ticket import Ticket
+from app.models.ticket_history import TicketHistory
 from app.models.user import User
 from app.schemas.ticket import TicketCreate, TicketUpdate
 
@@ -121,8 +122,14 @@ def get_ticket(session: Session, ticket_id: int, current_user: User) -> Ticket:
     return ticket
 
 
-def update_ticket(session: Session, ticket_id: int, data: TicketUpdate) -> Ticket:
-    """Atualiza um chamado existente. O controller já restringe isso a admin/tecnico."""
+# Campos que geram entrada no histórico quando alterados via PATCH.
+_TRACKED_FIELDS = ("title", "description", "status", "priority", "category_id", "subcategory_id", "assigned_to")
+
+
+def update_ticket(
+    session: Session, ticket_id: int, data: TicketUpdate, current_user: User
+) -> Ticket:
+    """Atualiza um chamado existente e registra cada campo alterado no histórico."""
     ticket = session.get(Ticket, ticket_id)
     if ticket is None:
         raise TicketNotFoundError("Chamado não encontrado.")
@@ -135,9 +142,30 @@ def update_ticket(session: Session, ticket_id: int, data: TicketUpdate) -> Ticke
     if data.category_id is not None and session.get(Category, data.category_id) is None:
         raise CategoryNotFoundError("Categoria informada não encontrada.")
 
-    update_data = data.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(ticket, field, value)
+    update_data = data.model_dump(exclude_unset=True, exclude={"comment"})
+    history_entries: list[TicketHistory] = []
+
+    for field in _TRACKED_FIELDS:
+        if field not in update_data:
+            continue
+
+        old_value = getattr(ticket, field)
+        new_value = update_data[field]
+
+        if old_value == new_value:
+            continue  # Sem mudança real: não gera histórico.
+
+        history_entries.append(
+            TicketHistory(
+                ticket_id=ticket.id,
+                field_name=field,
+                old_value=str(old_value) if old_value is not None else None,
+                new_value=str(new_value) if new_value is not None else None,
+                comment=data.comment,
+                changed_by=current_user.id,
+            )
+        )
+        setattr(ticket, field, new_value)
 
     if "status" in update_data:
         now = datetime.now(UTC)
@@ -149,6 +177,20 @@ def update_ticket(session: Session, ticket_id: int, data: TicketUpdate) -> Ticke
     ticket.updated_at = datetime.now(UTC)
 
     session.add(ticket)
+    for entry in history_entries:
+        session.add(entry)
     session.commit()
     session.refresh(ticket)
     return ticket
+
+
+def get_ticket_history(session: Session, ticket_id: int, current_user: User) -> list[TicketHistory]:
+    """Lista o histórico de alterações de um chamado, respeitando a mesma visibilidade do detalhe."""
+    get_ticket(session, ticket_id, current_user)  # valida existência + visibilidade (levanta 404)
+
+    query = (
+        select(TicketHistory)
+        .where(TicketHistory.ticket_id == ticket_id)
+        .order_by(TicketHistory.changed_at)
+    )
+    return list(session.exec(query))

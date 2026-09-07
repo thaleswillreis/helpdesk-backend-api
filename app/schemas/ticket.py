@@ -36,6 +36,10 @@ class TicketUpdate(BaseModel):
     category_id: int | None = None
     subcategory_id: int | None = None
     assigned_to: int | None = None
+    comment: str | None = Field(
+        default=None,
+        description="Observação opcional, registrada junto com as mudanças no histórico.",
+    )
 
 
 class TicketRead(BaseModel):
