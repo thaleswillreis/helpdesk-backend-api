@@ -8,6 +8,7 @@ from app.core.roles import is_staff
 from app.models.category import Category
 from app.models.enums import STATUS_ENCERRADOS, PrioridadeChamado, StatusChamado
 from app.models.subcategory import Subcategory
+from app.models.team import Team
 from app.models.ticket import Ticket
 from app.models.ticket_history import TicketHistory
 from app.models.user import User
@@ -37,6 +38,8 @@ class CategoryNotFoundError(Exception):
 class SubcategoryMismatchError(Exception):
     """Levantado quando a subcategoria informada não pertence à categoria informada."""
 
+class TeamNotFoundError(Exception):
+    """Levantado quando a equipe informada não existe."""
 
 def _resolve_requester(session: Session, data: TicketCreate, current_user: User) -> User:
     """Resolve e valida o usuário solicitante do chamado."""
@@ -123,7 +126,10 @@ def get_ticket(session: Session, ticket_id: int, current_user: User) -> Ticket:
 
 
 # Campos que geram entrada no histórico quando alterados via PATCH.
-_TRACKED_FIELDS = ("title", "description", "status", "priority", "category_id", "subcategory_id", "assigned_to")
+_TRACKED_FIELDS = (
+    "title", "description", "status", "priority",
+    "category_id", "subcategory_id", "assigned_to", "team_id",
+)
 
 
 def update_ticket(
@@ -141,6 +147,9 @@ def update_ticket(
 
     if data.category_id is not None and session.get(Category, data.category_id) is None:
         raise CategoryNotFoundError("Categoria informada não encontrada.")
+
+    if data.team_id is not None and session.get(Team, data.team_id) is None:
+        raise TeamNotFoundError("Equipe informada não encontrada.")
 
     update_data = data.model_dump(exclude_unset=True, exclude={"comment"})
     history_entries: list[TicketHistory] = []

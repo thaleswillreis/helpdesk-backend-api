@@ -7,6 +7,7 @@ from sqlmodel import Field, Relationship, SQLModel
 from app.models.category import Category
 from app.models.enums import PrioridadeChamado, StatusChamado
 from app.models.subcategory import Subcategory
+from app.models.team import Team
 from app.models.user import User
 
 
@@ -35,6 +36,9 @@ class Ticket(SQLModel, table=True):
     technician: User | None = Relationship(
         sa_relationship_kwargs={"foreign_keys": "Ticket.assigned_to"}
     )
+
+    team_id: int | None = Field(default=None, foreign_key="team.id")
+    team: Team | None = Relationship()
 
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

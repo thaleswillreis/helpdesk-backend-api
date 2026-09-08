@@ -14,6 +14,7 @@ from app.services.ticket_service import (
     InvalidAssigneeError,
     InvalidRequesterError,
     SubcategoryMismatchError,
+    TeamNotFoundError,
     TicketNotFoundError,
     create_ticket,
     get_ticket,
@@ -83,7 +84,7 @@ def edit_ticket(
         ticket = update_ticket(session, ticket_id, data, staff)
     except TicketNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    except (InvalidAssigneeError, CategoryNotFoundError) as exc:
+    except (InvalidAssigneeError, CategoryNotFoundError, TeamNotFoundError) as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
         ) from exc

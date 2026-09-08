@@ -127,3 +127,34 @@ def test_tecnico_updating_status_to_resolvido_sets_resolved_at(
 
     assert response.status_code == 200
     assert response.json()["resolved_at"] is not None
+
+
+def test_staff_can_assign_ticket_to_team(
+    client: TestClient, make_user, make_category, auth_headers
+) -> None:
+    """Um técnico/admin deve conseguir vincular um chamado a uma equipe."""
+    make_user("tec_ticket_team@example.com", "senha-forte-123", "tecnico")
+    make_user("solic_ticket_team@example.com", "senha-forte-123", "solicitante")
+    category = make_category("Rede")
+    headers_solic = auth_headers("solic_ticket_team@example.com", "senha-forte-123")
+    headers_tec = auth_headers("tec_ticket_team@example.com", "senha-forte-123")
+
+    team = client.post(
+        "/teams", json={"name": "Equipe Rede"}, headers=headers_tec
+    )
+    # criar equipe exige admin; caso o técnico não tenha permissão, criamos via admin separado
+    if team.status_code == 403:
+        make_user("admin_ticket_team@example.com", "senha-forte-123", "admin")
+        headers_admin = auth_headers("admin_ticket_team@example.com", "senha-forte-123")
+        team = client.post("/teams", json={"name": "Equipe Rede"}, headers=headers_admin)
+    team = team.json()
+
+    created = client.post(
+        "/tickets", json=_ticket_payload(category.id), headers=headers_solic
+    ).json()
+    response = client.patch(
+        f"/tickets/{created['id']}", json={"team_id": team["id"]}, headers=headers_tec
+    )
+
+    assert response.status_code == 200
+    assert response.json()["team_id"] == team["id"]
