@@ -23,6 +23,7 @@ services:
     env_file: .env
     environment:
       POSTGRES_HOST: db
+      MINIO_INTERNAL_ENDPOINT: minio:9000
     ports:
       - "8000:8000"
     volumes:
@@ -30,6 +31,39 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  minio:
+    image: minio/minio:latest
+    env_file: .env
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    command: server /data --console-address ":9011"
+    ports:
+      - "9010:9000"
+      - "9011:9011"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    image: minio/mc:latest
+    env_file: .env
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
+      mc mb --ignore-existing local/$${MINIO_BUCKET_NAME}
+      "
 
 volumes:
   postgres_data:
+  minio_data:

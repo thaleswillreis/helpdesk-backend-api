@@ -15,6 +15,18 @@ class Settings(BaseSettings):
     postgres_port: int = 5432
     test_postgres_db: str = "helpdesk_test"
 
+    minio_root_user: str = "helpdesk"
+    minio_root_password: str = "helpdesk123456"
+    minio_bucket_name: str = "helpdesk-attachments"
+    minio_internal_endpoint: str = "localhost:9010"
+    minio_public_endpoint: str = "localhost:9010"
+    minio_secure: bool = False
+
+    max_attachment_size_mb: int = 10
+    allowed_attachment_extensions: set[str] = {
+        "jpg", "jpeg", "png", "gif", "pdf", "doc", "docx", "xls", "xlsx", "txt", "zip",
+    }
+
     secret_key: str = "changeme-please-generate-a-random-secret"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
