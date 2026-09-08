@@ -56,7 +56,9 @@ def make_user(session: Session):
     from app.models.role import Role
     from app.models.user import User
 
-    def _make_user(email: str, password: str, role_name: str, is_vip: bool = False) -> User:
+    def _make_user(
+        email: str, password: str, role_name: str, is_vip: bool = False, level: str | None = None
+    ) -> User:
         role = session.exec(select(Role).where(Role.name == role_name)).first()
         user = User(
             name=f"Usuário {role_name}",
@@ -64,6 +66,7 @@ def make_user(session: Session):
             hashed_password=hash_password(password),
             role_id=role.id if role else None,
             is_vip=is_vip,
+            level=level,
         )
         session.add(user)
         session.commit()

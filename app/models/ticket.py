@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.category import Category
-from app.models.enums import PrioridadeChamado, StatusChamado
+from app.models.enums import NivelAtendimento, PrioridadeChamado, StatusChamado
 from app.models.subcategory import Subcategory
 from app.models.team import Team
 from app.models.user import User
@@ -39,6 +39,11 @@ class Ticket(SQLModel, table=True):
 
     team_id: int | None = Field(default=None, foreign_key="team.id")
     team: Team | None = Relationship()
+
+    current_level: NivelAtendimento = Field(
+        default=NivelAtendimento.N1,
+        description="Fila de nível de atendimento em que o chamado está atualmente.",
+    )
 
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

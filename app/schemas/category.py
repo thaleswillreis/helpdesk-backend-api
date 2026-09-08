@@ -10,6 +10,9 @@ class CategoryCreate(BaseModel):
 
     name: str = Field(max_length=100)
     default_priority: PrioridadeChamado
+    default_team_id: int | None = Field(
+        default=None, description="Equipe responsável padrão por esta categoria."
+    )
 
 
 class CategoryUpdate(BaseModel):
@@ -17,6 +20,7 @@ class CategoryUpdate(BaseModel):
 
     name: str | None = Field(default=None, max_length=100)
     default_priority: PrioridadeChamado | None = None
+    default_team_id: int | None = None
 
 
 class CategoryRead(BaseModel):
@@ -27,6 +31,7 @@ class CategoryRead(BaseModel):
     id: int
     name: str
     default_priority: PrioridadeChamado
+    default_team_id: int | None
 
 
 class SubcategoryCreate(BaseModel):

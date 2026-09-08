@@ -35,4 +35,5 @@ def register_user(
         email=user.email,
         role_name=user.role.name if user.role else None,
         is_active=user.is_active,
+        level=user.level,
     )

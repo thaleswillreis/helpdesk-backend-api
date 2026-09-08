@@ -4,11 +4,17 @@ from datetime import UTC, datetime
 
 from sqlmodel import Session, select
 
-from app.core.roles import is_staff
+from app.core.roles import is_admin, is_staff
 from app.models.category import Category
-from app.models.enums import STATUS_ENCERRADOS, PrioridadeChamado, StatusChamado
+from app.models.enums import (
+    ORDEM_NIVEL,
+    STATUS_ENCERRADOS,
+    PrioridadeChamado,
+    StatusChamado,
+)
 from app.models.subcategory import Subcategory
 from app.models.team import Team
+from app.models.team_membership import TeamMembership
 from app.models.ticket import Ticket
 from app.models.ticket_history import TicketHistory
 from app.models.user import User
@@ -38,8 +44,22 @@ class CategoryNotFoundError(Exception):
 class SubcategoryMismatchError(Exception):
     """Levantado quando a subcategoria informada não pertence à categoria informada."""
 
+
 class TeamNotFoundError(Exception):
     """Levantado quando a equipe informada não existe."""
+
+
+class InvalidTechnicianLevelError(Exception):
+    """Levantado quando o técnico informado não tem o nível esperado para o chamado."""
+
+
+class TechnicianNotInTeamError(Exception):
+    """Levantado quando o técnico informado não é membro da equipe atual do chamado."""
+
+
+class ForbiddenLevelDowngradeError(Exception):
+    """Levantado quando um não-admin tenta rebaixar o nível de um chamado."""
+
 
 def _resolve_requester(session: Session, data: TicketCreate, current_user: User) -> User:
     """Resolve e valida o usuário solicitante do chamado."""
@@ -69,7 +89,7 @@ def _resolve_priority(
 
 
 def create_ticket(session: Session, data: TicketCreate, current_user: User) -> Ticket:
-    """Cria um chamado, resolvendo solicitante, categoria/subcategoria e prioridade."""
+    """Cria um chamado, resolvendo solicitante, categoria/subcategoria, prioridade e fila."""
     requester = _resolve_requester(session, data, current_user)
 
     category = session.get(Category, data.category_id)
@@ -94,6 +114,7 @@ def create_ticket(session: Session, data: TicketCreate, current_user: User) -> T
         category_id=data.category_id,
         subcategory_id=data.subcategory_id,
         requester_id=requester.id,
+        team_id=category.default_team_id,  # Fila automática pela equipe padrão da categoria.
     )
     session.add(ticket)
     session.commit()
@@ -128,22 +149,39 @@ def get_ticket(session: Session, ticket_id: int, current_user: User) -> Ticket:
 # Campos que geram entrada no histórico quando alterados via PATCH.
 _TRACKED_FIELDS = (
     "title", "description", "status", "priority",
-    "category_id", "subcategory_id", "assigned_to", "team_id",
+    "category_id", "subcategory_id", "assigned_to", "team_id", "current_level",
 )
+
+
+def _validate_assignee(session: Session, technician_id: int, ticket: Ticket, final_level) -> User:
+    """Valida que o técnico existe, tem o nível esperado e pertence à equipe do chamado."""
+    technician = session.get(User, technician_id)
+    if technician is None or not technician.is_active:
+        raise InvalidAssigneeError("Técnico informado não encontrado ou inativo.")
+
+    if technician.level != final_level:
+        raise InvalidTechnicianLevelError(
+            f"O técnico precisa estar no nível {final_level.value} para receber este chamado."
+        )
+
+    final_team_id = ticket.team_id
+    if final_team_id is not None:
+        membership = session.get(TeamMembership, (final_team_id, technician_id))
+        if membership is None:
+            raise TechnicianNotInTeamError(
+                "O técnico informado não é membro da equipe atual do chamado."
+            )
+
+    return technician
 
 
 def update_ticket(
     session: Session, ticket_id: int, data: TicketUpdate, current_user: User
 ) -> Ticket:
-    """Atualiza um chamado existente e registra cada campo alterado no histórico."""
+    """Atualiza um chamado existente, aplicando as regras de nível/escalonamento."""
     ticket = session.get(Ticket, ticket_id)
     if ticket is None:
         raise TicketNotFoundError("Chamado não encontrado.")
-
-    if data.assigned_to is not None:
-        technician = session.get(User, data.assigned_to)
-        if technician is None or not technician.is_active:
-            raise InvalidAssigneeError("Técnico informado não encontrado ou inativo.")
 
     if data.category_id is not None and session.get(Category, data.category_id) is None:
         raise CategoryNotFoundError("Categoria informada não encontrada.")
@@ -154,6 +192,24 @@ def update_ticket(
     update_data = data.model_dump(exclude_unset=True, exclude={"comment"})
     history_entries: list[TicketHistory] = []
 
+    # Resolve o nível final ANTES de validar o técnico, pois a validação depende dele.
+    final_level = update_data.get("current_level", ticket.current_level)
+
+    if "current_level" in update_data and update_data["current_level"] != ticket.current_level:
+        subindo = ORDEM_NIVEL[update_data["current_level"]] > ORDEM_NIVEL[ticket.current_level]
+        if not subindo and not is_admin(current_user):
+            raise ForbiddenLevelDowngradeError(
+                "Somente um administrador pode rebaixar o nível de um chamado."
+            )
+
+        # Ao mudar de nível sem um técnico específico informado junto, o chamado
+        # volta para a fila daquele nível (assigned_to é limpo).
+        if subindo and "assigned_to" not in update_data and ticket.assigned_to is not None:
+            update_data["assigned_to"] = None
+
+    if "assigned_to" in update_data and update_data["assigned_to"] is not None:
+        _validate_assignee(session, update_data["assigned_to"], ticket, final_level)
+
     for field in _TRACKED_FIELDS:
         if field not in update_data:
             continue
@@ -162,7 +218,7 @@ def update_ticket(
         new_value = update_data[field]
 
         if old_value == new_value:
-            continue  # Sem mudança real: não gera histórico.
+            continue
 
         history_entries.append(
             TicketHistory(

@@ -10,11 +10,14 @@ from app.schemas.ticket import TicketCreate, TicketRead, TicketUpdate
 from app.schemas.ticket_history import TicketHistoryRead
 from app.services.ticket_service import (
     CategoryNotFoundError,
+    ForbiddenLevelDowngradeError,
     ForbiddenTicketAccessError,
     InvalidAssigneeError,
     InvalidRequesterError,
+    InvalidTechnicianLevelError,
     SubcategoryMismatchError,
     TeamNotFoundError,
+    TechnicianNotInTeamError,
     TicketNotFoundError,
     create_ticket,
     get_ticket,
@@ -84,7 +87,15 @@ def edit_ticket(
         ticket = update_ticket(session, ticket_id, data, staff)
     except TicketNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    except (InvalidAssigneeError, CategoryNotFoundError, TeamNotFoundError) as exc:
+    except ForbiddenLevelDowngradeError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except (
+        InvalidAssigneeError,
+        CategoryNotFoundError,
+        TeamNotFoundError,
+        InvalidTechnicianLevelError,
+        TechnicianNotInTeamError,
+    ) as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
         ) from exc

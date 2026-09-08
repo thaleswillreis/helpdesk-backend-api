@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.enums import PrioridadeChamado, StatusChamado
+from app.models.enums import NivelAtendimento, PrioridadeChamado, StatusChamado
 
 
 class TicketCreate(BaseModel):
@@ -37,10 +37,8 @@ class TicketUpdate(BaseModel):
     subcategory_id: int | None = None
     assigned_to: int | None = None
     team_id: int | None = None
-    comment: str | None = Field(
-        default=None,
-        description="Observação opcional, registrada junto com as mudanças no histórico.",
-    )
+    current_level: NivelAtendimento | None = None
+    comment: str | None = Field(default=None)
 
 
 class TicketRead(BaseModel):
@@ -58,6 +56,7 @@ class TicketRead(BaseModel):
     requester_id: int
     assigned_to: int | None
     team_id: int | None
+    current_level: NivelAtendimento
     created_at: datetime
     updated_at: datetime
     resolved_at: datetime | None

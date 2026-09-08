@@ -31,6 +31,7 @@ def create_user(session: Session, data: UserCreate) -> User:
         email=data.email,
         hashed_password=hash_password(data.password),
         role_id=role.id,
+        level=data.level,
     )
     session.add(user)
     session.commit()

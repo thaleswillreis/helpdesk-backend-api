@@ -4,6 +4,7 @@ from sqlmodel import Session, select
 
 from app.models.category import Category
 from app.models.subcategory import Subcategory
+from app.models.team import Team
 from app.schemas.category import (
     CategoryCreate,
     CategoryUpdate,
@@ -23,6 +24,9 @@ class SubcategoryNotFoundError(Exception):
 class DuplicateCategoryNameError(Exception):
     """Levantado ao tentar criar/renomear categoria para um nome já usado."""
 
+class TeamNotFoundError(Exception):
+    """Levantado quando a equipe informada não existe."""
+
 
 def create_category(session: Session, data: CategoryCreate) -> Category:
     """Cria uma nova categoria."""
@@ -30,7 +34,14 @@ def create_category(session: Session, data: CategoryCreate) -> Category:
     if existing is not None:
         raise DuplicateCategoryNameError(f"Já existe uma categoria chamada '{data.name}'.")
 
-    category = Category(name=data.name, default_priority=data.default_priority)
+    if data.default_team_id is not None and session.get(Team, data.default_team_id) is None:
+        raise TeamNotFoundError("Equipe informada não encontrada.")
+
+    category = Category(
+        name=data.name,
+        default_priority=data.default_priority,
+        default_team_id=data.default_team_id,
+    )
     session.add(category)
     session.commit()
     session.refresh(category)
@@ -47,6 +58,9 @@ def update_category(session: Session, category_id: int, data: CategoryUpdate) ->
     category = session.get(Category, category_id)
     if category is None:
         raise CategoryNotFoundError("Categoria não encontrada.")
+
+    if data.default_team_id is not None and session.get(Team, data.default_team_id) is None:
+        raise TeamNotFoundError("Equipe informada não encontrada.")
 
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():

@@ -46,19 +46,34 @@ def test_multiple_field_changes_create_multiple_entries(
     client: TestClient, make_user, make_category, auth_headers
 ) -> None:
     """Alterar vários campos no mesmo PATCH deve gerar uma entrada por campo."""
-    tecnico = make_user("tec_hist2@example.com", "senha-forte-123", "tecnico")
+    make_user("admin_hist2@example.com", "senha-forte-123", "admin")
+    tecnico = make_user(
+        "tec_hist2@example.com", "senha-forte-123", "tecnico", level="n1"
+    )
     make_user("solic_hist2@example.com", "senha-forte-123", "solicitante")
-    category = make_category("Software")
 
+    headers_admin = auth_headers("admin_hist2@example.com", "senha-forte-123")
     headers_solic = auth_headers("solic_hist2@example.com", "senha-forte-123")
     headers_tec = auth_headers("tec_hist2@example.com", "senha-forte-123")
 
-    created = client.post("/tickets", json=_ticket_payload(category.id), headers=headers_solic).json()
-    client.patch(
+    team = client.post("/teams", json={"name": "Equipe Software"}, headers=headers_admin).json()
+    client.post(f"/teams/{team['id']}/members", json={"user_id": tecnico.id}, headers=headers_admin)
+    category = client.post(
+        "/categories",
+        json={"name": "Software Hist", "default_priority": "media", "default_team_id": team["id"]},
+        headers=headers_admin,
+    ).json()
+
+    created = client.post(
+        "/tickets", json=_ticket_payload(category["id"]), headers=headers_solic
+    ).json()
+
+    patch_response = client.patch(
         f"/tickets/{created['id']}",
         json={"status": "em_atendimento", "assigned_to": tecnico.id},
         headers=headers_tec,
     )
+    assert patch_response.status_code == 200
 
     response = client.get(f"/tickets/{created['id']}/history", headers=headers_tec)
 

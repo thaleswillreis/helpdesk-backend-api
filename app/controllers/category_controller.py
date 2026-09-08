@@ -17,6 +17,7 @@ from app.services.category_service import (
     CategoryNotFoundError,
     DuplicateCategoryNameError,
     SubcategoryNotFoundError,
+    TeamNotFoundError,
     create_category,
     create_subcategory,
     list_categories,
@@ -39,6 +40,10 @@ def add_category(
         category = create_category(session, data)
     except DuplicateCategoryNameError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except TeamNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
 
     return CategoryRead.model_validate(category)
 
@@ -64,6 +69,10 @@ def edit_category(
         category = update_category(session, category_id, data)
     except CategoryNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except TeamNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
 
     return CategoryRead.model_validate(category)
 

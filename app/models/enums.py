@@ -46,3 +46,19 @@ PESO_PRIORIDADE: dict[PrioridadeChamado, int] = {
     PrioridadeChamado.CRITICA: 4,
     PrioridadeChamado.VIP: 5,
 }
+
+
+class NivelAtendimento(StrEnum):
+    """Nível de atendimento de um técnico ou de um chamado (N1, N2, N3)."""
+
+    N1 = "n1"
+    N2 = "n2"
+    N3 = "n3"
+
+
+# Ordem para comparação (escalonamento só sobe sem autorização especial).
+ORDEM_NIVEL: dict[NivelAtendimento, int] = {
+    NivelAtendimento.N1: 1,
+    NivelAtendimento.N2: 2,
+    NivelAtendimento.N3: 3,
+}

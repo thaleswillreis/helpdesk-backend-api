@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 
 from sqlmodel import Field, Relationship, SQLModel
 
+from app.models.enums import NivelAtendimento
 from app.models.role import Role
 
 
@@ -15,10 +16,9 @@ class User(SQLModel, table=True):
     email: str = Field(unique=True, index=True, max_length=255)
     hashed_password: str
     is_active: bool = Field(default=True)
-    is_vip: bool = Field(
-        default=False,
-        description="Usuário VIP (ex.: diretoria/conselho) — chamados abertos por ele "
-        "recebem automaticamente prioridade VIP.",
+    is_vip: bool = Field(default=False)
+    level: NivelAtendimento | None = Field(
+        default=None, description="Nível de atendimento do técnico (N1/N2/N3). Não se aplica a admin/solicitante."
     )
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 

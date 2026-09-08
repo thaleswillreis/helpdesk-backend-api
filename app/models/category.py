@@ -1,8 +1,9 @@
 """Modelo de dados para categorias de chamados."""
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.enums import PrioridadeChamado
+from app.models.team import Team
 
 
 class Category(SQLModel, table=True):
@@ -13,3 +14,9 @@ class Category(SQLModel, table=True):
     default_priority: PrioridadeChamado = Field(
         description="Prioridade sugerida ao abrir um chamado nesta categoria."
     )
+    default_team_id: int | None = Field(
+        default=None,
+        foreign_key="team.id",
+        description="Equipe que recebe automaticamente os chamados desta categoria.",
+    )
+    default_team: Team | None = Relationship()

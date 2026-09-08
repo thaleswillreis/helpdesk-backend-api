@@ -8,3 +8,8 @@ STAFF_ROLES = {"admin", "tecnico"}
 def is_staff(user: User) -> bool:
     """Retorna True se o usuário for admin ou técnico."""
     return user.role is not None and user.role.name in STAFF_ROLES
+
+
+def is_admin(user: User) -> bool:
+    """Retorna True se o usuário for admin."""
+    return user.role is not None and user.role.name == "admin"

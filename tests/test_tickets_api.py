@@ -158,3 +158,101 @@ def test_staff_can_assign_ticket_to_team(
 
     assert response.status_code == 200
     assert response.json()["team_id"] == team["id"]
+
+
+def test_ticket_inherits_team_from_category_default(
+    client: TestClient, make_user, make_category, auth_headers
+) -> None:
+    """Um chamado deve nascer com o team_id da equipe padrão da sua categoria."""
+    make_user("admin_queue1@example.com", "senha-forte-123", "admin")
+    make_user("solic_queue1@example.com", "senha-forte-123", "solicitante")
+    headers_admin = auth_headers("admin_queue1@example.com", "senha-forte-123")
+    headers_solic = auth_headers("solic_queue1@example.com", "senha-forte-123")
+
+    team = client.post("/teams", json={"name": "Equipe Redes"}, headers=headers_admin).json()
+    category = client.post(
+        "/categories",
+        json={"name": "Rede/Internet", "default_priority": "alta", "default_team_id": team["id"]},
+        headers=headers_admin,
+    ).json()
+
+    response = client.post(
+        "/tickets",
+        json={
+            "title": "Sem conexão",
+            "description": "Rede caiu no setor comercial.",
+            "category_id": category["id"],
+        },
+        headers=headers_solic,
+    )
+
+    assert response.status_code == 201
+    assert response.json()["team_id"] == team["id"]
+
+
+def test_ticket_can_be_reassigned_to_different_team_regardless_of_category(
+    client: TestClient, make_user, make_category, auth_headers
+) -> None:
+    """Um chamado deve poder ser reatribuído para qualquer equipe, mesmo fora da categoria original."""
+    make_user("admin_queue2@example.com", "senha-forte-123", "admin")
+    make_user("tec_queue1@example.com", "senha-forte-123", "tecnico")
+    make_user("solic_queue2@example.com", "senha-forte-123", "solicitante")
+    headers_admin = auth_headers("admin_queue2@example.com", "senha-forte-123")
+    headers_tec = auth_headers("tec_queue1@example.com", "senha-forte-123")
+    headers_solic = auth_headers("solic_queue2@example.com", "senha-forte-123")
+
+    team_redes = client.post("/teams", json={"name": "Equipe Redes 2"}, headers=headers_admin).json()
+    team_manutencao = client.post(
+        "/teams", json={"name": "Equipe Manutenção"}, headers=headers_admin
+    ).json()
+    category = client.post(
+        "/categories",
+        json={
+            "name": "Rede/Internet 2",
+            "default_priority": "alta",
+            "default_team_id": team_redes["id"],
+        },
+        headers=headers_admin,
+    ).json()
+
+    created = client.post(
+        "/tickets",
+        json={
+            "title": "Sem conexão",
+            "description": "Placa de rede queimada, descoberto após diagnóstico.",
+            "category_id": category["id"],
+        },
+        headers=headers_solic,
+    ).json()
+    assert created["team_id"] == team_redes["id"]
+
+    response = client.patch(
+        f"/tickets/{created['id']}",
+        json={"team_id": team_manutencao["id"], "comment": "Placa de rede queimada, escalando para Manutenção."},
+        headers=headers_tec,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["team_id"] == team_manutencao["id"]
+
+
+def test_category_without_default_team_creates_ticket_without_team(
+    client: TestClient, make_user, make_category, auth_headers
+) -> None:
+    """Categoria sem equipe padrão configurada deve gerar chamado com team_id nulo."""
+    make_user("solic_queue3@example.com", "senha-forte-123", "solicitante")
+    headers = auth_headers("solic_queue3@example.com", "senha-forte-123")
+    category = make_category("Sem Equipe Definida")
+
+    response = client.post(
+        "/tickets",
+        json={
+            "title": "Chamado genérico",
+            "description": "Categoria ainda sem equipe vinculada.",
+            "category_id": category.id,
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 201
+    assert response.json()["team_id"] is None
