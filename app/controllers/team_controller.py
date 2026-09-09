@@ -25,6 +25,15 @@ from app.services.team_service import (
     remove_member,
     update_team,
 )
+from app.schemas.team_schedule import TeamScheduleCreate, TeamScheduleRead
+from app.services.team_schedule_service import (
+    DuplicateScheduleDayError,
+    ScheduleNotFoundError,
+    TeamNotFoundError as ScheduleTeamNotFoundError,
+    add_schedule_entry,
+    list_schedule,
+    remove_schedule_entry,
+)
 
 router = APIRouter(prefix="/teams", tags=["teams"])
 
@@ -116,3 +125,52 @@ def get_team_members(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
     return [TeamMemberRead.model_validate(member) for member in members]
+
+
+@router.post(
+    "/{team_id}/schedule", response_model=TeamScheduleRead, status_code=status.HTTP_201_CREATED
+)
+def add_team_schedule(
+    team_id: int,
+    data: TeamScheduleCreate,
+    session: Session = Depends(get_session),
+    _admin=Depends(require_role("admin")),
+) -> TeamScheduleRead:
+    """Cadastra a janela de expediente de um dia para a equipe. Restrito a administradores."""
+    try:
+        entry = add_schedule_entry(session, team_id, data)
+    except ScheduleTeamNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except DuplicateScheduleDayError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+    return TeamScheduleRead.model_validate(entry)
+
+
+@router.get("/{team_id}/schedule", response_model=list[TeamScheduleRead])
+def get_team_schedule(
+    team_id: int,
+    session: Session = Depends(get_session),
+    _user=Depends(get_current_user),
+) -> list[TeamScheduleRead]:
+    """Lista o expediente cadastrado da equipe (vazio = 24/7)."""
+    try:
+        entries = list_schedule(session, team_id)
+    except ScheduleTeamNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+    return [TeamScheduleRead.model_validate(e) for e in entries]
+
+
+@router.delete("/{team_id}/schedule/{schedule_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_team_schedule(
+    team_id: int,
+    schedule_id: int,
+    session: Session = Depends(get_session),
+    _admin=Depends(require_role("admin")),
+) -> None:
+    """Remove uma janela de expediente da equipe. Restrito a administradores."""
+    try:
+        remove_schedule_entry(session, team_id, schedule_id)
+    except ScheduleNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc

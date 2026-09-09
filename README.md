@@ -95,7 +95,7 @@ O projeto está sendo construído de forma incremental, seguindo um backlog divi
 - [x] Fase 1 — Identidade e acesso
 - [x] Fase 2 — Gestão de chamados
 - [x] Fase 3 — Atendimento
-- [ ] Fase 4 — SLA
+- [x] Fase 4 — SLA
 - [ ] Fase 5 — Base de conhecimento
 - [ ] Fase 6 — Catálogo de serviços
 - [ ] Fase 7 — Automação

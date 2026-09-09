@@ -4,19 +4,28 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Configurações da aplicação (lidas de variáveis de ambiente ou .env)."""
+    """Configurações da aplicação (lidas de variáveis de ambiente ou .env).
+
+    Campos sem valor padrão são OBRIGATÓRIOS: se não vierem do .env ou do
+    ambiente, a aplicação falha ao iniciar em vez de usar um segredo fraco
+    silenciosamente.
+    """
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    # --- Segredos: sem valor padrão, obrigatórios via .env ---
+    postgres_password: str
+    minio_root_password: str
+    secret_key: str
+
+    # --- Configuração não sensível: valor padrão OK ---
     postgres_user: str = "helpdesk"
-    postgres_password: str = "helpdesk"
     postgres_db: str = "helpdesk"
     postgres_host: str = "localhost"
     postgres_port: int = 5432
     test_postgres_db: str = "helpdesk_test"
 
     minio_root_user: str = "helpdesk"
-    minio_root_password: str = "helpdesk123456"
     minio_bucket_name: str = "helpdesk-attachments"
     minio_internal_endpoint: str = "localhost:9010"
     minio_public_endpoint: str = "localhost:9010"
@@ -27,7 +36,6 @@ class Settings(BaseSettings):
         "jpg", "jpeg", "png", "gif", "pdf", "doc", "docx", "xls", "xlsx", "txt", "zip",
     }
 
-    secret_key: str = "changeme-please-generate-a-random-secret"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7

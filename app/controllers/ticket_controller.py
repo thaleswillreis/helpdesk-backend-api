@@ -1,15 +1,22 @@
 """Endpoints de gestão de chamados (tickets)."""
 
-from fastapi import APIRouter, Depends, File, HTTPException, status, UploadFile
+from datetime import datetime
+from fastapi import APIRouter, Depends, File, HTTPException, Query, status, UploadFile
 from sqlmodel import Session
 
 from app.core.database import get_session
 from app.core.dependencies import get_current_user, require_role
 from app.models.user import User
+from app.models.enums import NivelAtendimento, StatusChamado
 from app.schemas.ticket import TicketCreate, TicketRead, TicketUpdate
 from app.schemas.ticket_history import TicketHistoryRead
 from app.schemas.ticket_attachment import TicketAttachmentDownload, TicketAttachmentRead
 from app.schemas.ticket_comment import TicketCommentCreate, TicketCommentRead
+from app.schemas.sla_status import SLAClockRead, TicketSLARead
+from app.schemas.ticket_overview import TicketOverviewItem, TicketOverviewPage
+from app.services.sla_calculation_service import SLAClockStatus
+from app.services.ticket_overview_service import get_tickets_overview
+from app.services.sla_calculation_service import calculate_sla
 from app.services.attachment_service import (
     AttachmentNotFoundError,
     FileTooLargeError,
@@ -76,6 +83,48 @@ def list_my_tickets(
     """Lista chamados visíveis ao usuário autenticado."""
     tickets = list_tickets(session, current_user, skip=skip, limit=limit)
     return [TicketRead.model_validate(ticket) for ticket in tickets]
+
+
+@router.get("/overview", response_model=TicketOverviewPage)
+def read_tickets_overview(
+    status_filter: list[StatusChamado] | None = Query(default=None, alias="status"),
+    team_id: int | None = None,
+    current_level: NivelAtendimento | None = None,
+    created_from: datetime | None = None,
+    created_to: datetime | None = None,
+    sla_status: SLAClockStatus | None = None,
+    skip: int = 0,
+    limit: int = 50,
+    session: Session = Depends(get_session),
+    _staff: User = Depends(require_role("admin", "tecnico")),
+) -> TicketOverviewPage:
+    """Lista chamados com filtros combinados (status, equipe, nível, data, SLA).
+
+    Ferramenta de monitoramento para a equipe. Restrito a admin/tecnico.
+    """
+    total, results = get_tickets_overview(
+        session,
+        status_filter=status_filter,
+        team_id=team_id,
+        current_level=current_level,
+        created_from=created_from,
+        created_to=created_to,
+        sla_status=sla_status,
+        skip=skip,
+        limit=limit,
+    )
+
+    items = [
+    TicketOverviewItem(
+        **TicketRead.model_validate(ticket).model_dump(),
+        sla_applicable=sla is not None,
+        sla_response=SLAClockRead(**sla["response"].__dict__) if sla else None,
+        sla_resolution=SLAClockRead(**sla["resolution"].__dict__) if sla else None,
+    )
+    for ticket, sla in results
+]
+
+    return TicketOverviewPage(total=total, skip=skip, limit=limit, items=items)
 
 
 @router.get("/{ticket_id}", response_model=TicketRead)
@@ -244,3 +293,27 @@ def download_attachment(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
     return TicketAttachmentDownload(download_url=url)
+
+
+@router.get("/{ticket_id}/sla", response_model=TicketSLARead)
+def read_ticket_sla(
+    ticket_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> TicketSLARead:
+    """Consulta o status de SLA (resposta e solução) de um chamado."""
+    try:
+        ticket = get_ticket(session, ticket_id, current_user)
+    except TicketNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+    result = calculate_sla(session, ticket)
+    if result is None:
+        return TicketSLARead(applicable=False)
+
+    return TicketSLARead(
+        applicable=True,
+        priority=result["priority"],
+        response=SLAClockRead(**result["response"].__dict__),
+        resolution=SLAClockRead(**result["resolution"].__dict__),
+    )
