@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from app.controllers.article_controller import router as article_router
 from app.controllers.auth_controller import router as auth_router
 from app.controllers.category_controller import router as category_router
 from app.controllers.sla_policy_controller import router as sla_policy_router
@@ -14,6 +15,7 @@ app = FastAPI(
     version="0.1.0",
 )
 
+app.include_router(article_router)
 app.include_router(auth_router)
 app.include_router(user_router)
 app.include_router(category_router)

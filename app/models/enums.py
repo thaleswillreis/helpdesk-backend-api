@@ -62,3 +62,10 @@ ORDEM_NIVEL: dict[NivelAtendimento, int] = {
     NivelAtendimento.N2: 2,
     NivelAtendimento.N3: 3,
 }
+
+
+class ArticleStatus(StrEnum):
+    """Situação de publicação de um artigo da base de conhecimento."""
+
+    DRAFT = "draft"
+    PUBLISHED = "published"
