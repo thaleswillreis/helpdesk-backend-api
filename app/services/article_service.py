@@ -2,11 +2,13 @@
 
 from datetime import UTC, datetime
 
+from sqlalchemy import column, func
 from sqlmodel import Session, select
 
 from app.core.roles import is_staff
 from app.models.article import Article
 from app.models.category import Category
+from app.models.enums import ArticleStatus
 from app.models.subcategory import Subcategory
 from app.models.user import User
 from app.schemas.article import ArticleCreate, ArticleUpdate
@@ -46,6 +48,7 @@ def create_article(session: Session, data: ArticleCreate, author: User) -> Artic
     article = Article(
         title=data.title,
         content=data.content,
+        tags=data.tags,
         status=data.status,
         category_id=data.category_id,
         subcategory_id=data.subcategory_id,
@@ -105,3 +108,40 @@ def update_article(session: Session, article_id: int, data: ArticleUpdate) -> Ar
     session.commit()
     session.refresh(article)
     return article
+
+
+def search_articles(
+    session: Session, current_user: User, query_text: str, skip: int = 0, limit: int = 50
+) -> list[Article]:
+    """Busca artigos por relevância (full-text search), respeitando a visibilidade por status.
+
+    Combina os dicionários 'simple' (correspondência exata, protege siglas
+    técnicas como VPN/DNS via tags) e 'helpdesk_ptbr' (português com stemming
+    em inglês para termos ASCII, como 'router'/'routers') na mesma consulta.
+
+    A comparação de status usa o operador do SQLAlchemy (Article.status == ...)
+    em vez de um literal em SQL bruto, para que a tradução entre o valor
+    Python e o rótulo real do enum no banco funcione corretamente — evita
+    depender de como o tipo enum foi criado (migration vs. create_all()).
+    """
+    search_vector = column("search_vector")
+    ts_query = func.plainto_tsquery("simple", query_text).op("||")(
+        func.plainto_tsquery("helpdesk_ptbr", query_text)
+    )
+    rank = func.ts_rank(search_vector, ts_query)
+
+    stmt = select(Article.id).where(search_vector.op("@@")(ts_query))
+    if not is_staff(current_user):
+        stmt = stmt.where(Article.status == ArticleStatus.PUBLISHED)
+    stmt = stmt.order_by(rank.desc()).offset(skip).limit(limit)
+
+    ordered_ids = list(session.exec(stmt))
+    if not ordered_ids:
+        return []
+
+    articles_by_id = {
+        a.id: a for a in session.exec(select(Article).where(Article.id.in_(ordered_ids)))
+    }
+    return [
+        articles_by_id[article_id] for article_id in ordered_ids if article_id in articles_by_id
+    ]

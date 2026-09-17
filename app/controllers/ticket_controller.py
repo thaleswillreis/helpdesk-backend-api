@@ -1,22 +1,22 @@
 """Endpoints de gestão de chamados (tickets)."""
 
 from datetime import datetime
-from fastapi import APIRouter, Depends, File, HTTPException, Query, status, UploadFile
+
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlmodel import Session
 
 from app.core.database import get_session
 from app.core.dependencies import get_current_user, require_role
-from app.models.user import User
 from app.models.enums import NivelAtendimento, StatusChamado
+from app.models.user import User
+from app.schemas.article import ArticleRead
+from app.schemas.sla_status import SLAClockRead, TicketSLARead
 from app.schemas.ticket import TicketCreate, TicketRead, TicketUpdate
-from app.schemas.ticket_history import TicketHistoryRead
+from app.schemas.ticket_article import TicketArticleCreate, TicketArticleRead, TicketArticleUpdate
 from app.schemas.ticket_attachment import TicketAttachmentDownload, TicketAttachmentRead
 from app.schemas.ticket_comment import TicketCommentCreate, TicketCommentRead
-from app.schemas.sla_status import SLAClockRead, TicketSLARead
+from app.schemas.ticket_history import TicketHistoryRead
 from app.schemas.ticket_overview import TicketOverviewItem, TicketOverviewPage
-from app.services.sla_calculation_service import SLAClockStatus
-from app.services.ticket_overview_service import get_tickets_overview
-from app.services.sla_calculation_service import calculate_sla
 from app.services.attachment_service import (
     AttachmentNotFoundError,
     FileTooLargeError,
@@ -33,6 +33,20 @@ from app.services.comment_service import (
     create_comment,
     list_comments,
 )
+from app.services.sla_calculation_service import SLAClockStatus, calculate_sla
+from app.services.ticket_article_service import (
+    ArticleNotFoundError,
+    DuplicateLinkError,
+    LinkNotFoundError,
+    TicketNotFoundError as ArticleLinkTicketNotFoundError,
+    TicketNotYetResolvedError,
+    link_article,
+    list_linked_articles,
+    set_resolution,
+    suggest_articles,
+    unlink_article,
+)
+from app.services.ticket_overview_service import get_tickets_overview
 from app.services.ticket_service import (
     CategoryNotFoundError,
     ForbiddenLevelDowngradeError,
@@ -317,3 +331,93 @@ def read_ticket_sla(
         response=SLAClockRead(**result["response"].__dict__),
         resolution=SLAClockRead(**result["resolution"].__dict__),
     )
+
+
+@router.post(
+    "/{ticket_id}/articles", response_model=TicketArticleRead, status_code=status.HTTP_201_CREATED
+)
+def add_ticket_article(
+    ticket_id: int,
+    data: TicketArticleCreate,
+    session: Session = Depends(get_session),
+    staff: User = Depends(require_role("admin", "tecnico")),
+) -> TicketArticleRead:
+    """Vincula um artigo a um chamado. Restrito a admin/tecnico."""
+    try:
+        link = link_article(session, ticket_id, data.article_id, staff)
+    except ArticleLinkTicketNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ArticleNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+    except DuplicateLinkError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+    return TicketArticleRead.model_validate(link)
+
+
+@router.get("/{ticket_id}/articles", response_model=list[TicketArticleRead])
+def read_ticket_articles(
+    ticket_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> list[TicketArticleRead]:
+    """Lista os artigos vinculados a um chamado."""
+    try:
+        links = list_linked_articles(session, ticket_id, current_user)
+    except ArticleLinkTicketNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+    return [TicketArticleRead.model_validate(link) for link in links]
+
+
+@router.get("/{ticket_id}/articles/suggestions", response_model=list[ArticleRead])
+def read_article_suggestions(
+    ticket_id: int,
+    limit: int = 10,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> list[ArticleRead]:
+    """Sugere artigos relevantes (mesma categoria + relevância textual) para o chamado."""
+    try:
+        articles = suggest_articles(session, ticket_id, current_user, limit=limit)
+    except ArticleLinkTicketNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+    return [ArticleRead.model_validate(a) for a in articles]
+
+
+@router.patch("/{ticket_id}/articles/{article_id}", response_model=TicketArticleRead)
+def edit_ticket_article(
+    ticket_id: int,
+    article_id: int,
+    data: TicketArticleUpdate,
+    session: Session = Depends(get_session),
+    _staff: User = Depends(require_role("admin", "tecnico")),
+) -> TicketArticleRead:
+    """Marca ou desmarca um artigo vinculado como a solução do chamado."""
+    try:
+        link = set_resolution(session, ticket_id, article_id, data.is_resolution)
+    except LinkNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except TicketNotYetResolvedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+
+    return TicketArticleRead.model_validate(link)
+
+
+@router.delete("/{ticket_id}/articles/{article_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_ticket_article(
+    ticket_id: int,
+    article_id: int,
+    session: Session = Depends(get_session),
+    _staff: User = Depends(require_role("admin", "tecnico")),
+) -> None:
+    """Remove o vínculo entre um chamado e um artigo."""
+    try:
+        unlink_article(session, ticket_id, article_id)
+    except LinkNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc

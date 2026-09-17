@@ -15,6 +15,7 @@ class ArticleCreate(BaseModel):
     category_id: int
     subcategory_id: int | None = None
     status: ArticleStatus = ArticleStatus.DRAFT
+    tags: list[str] = Field(default_factory=list)
 
 
 class ArticleUpdate(BaseModel):
@@ -25,6 +26,7 @@ class ArticleUpdate(BaseModel):
     category_id: int | None = None
     subcategory_id: int | None = None
     status: ArticleStatus | None = None
+    tags: list[str] | None = None
 
 
 class ArticleRead(BaseModel):
@@ -35,6 +37,7 @@ class ArticleRead(BaseModel):
     id: int
     title: str
     content: str
+    tags: list[str]
     status: ArticleStatus
     category_id: int
     subcategory_id: int | None

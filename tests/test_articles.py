@@ -138,3 +138,119 @@ def test_article_with_mismatched_subcategory_returns_422(
     )
 
     assert response.status_code == 422
+
+
+def test_search_finds_article_by_title_stem(
+    client: TestClient, make_user, make_category, auth_headers
+) -> None:
+    """Busca deve encontrar variação de palavra via stemming (plural/singular)."""
+    make_user("tec_search1@example.com", "senha-forte-123", "tecnico")
+    category = make_category("Search Cat 1")
+    headers = auth_headers("tec_search1@example.com", "senha-forte-123")
+
+    client.post(
+        "/articles",
+        json={
+            "title": "Como resetar impressoras da rede",
+            "content": "Procedimento padrão.",
+            "category_id": category.id,
+            "status": "published",
+        },
+        headers=headers,
+    )
+
+    response = client.get("/articles/search?q=impressora", headers=headers)
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+
+
+def test_search_finds_article_by_english_term(
+    client: TestClient, make_user, make_category, auth_headers
+) -> None:
+    """Termos técnicos em inglês (ASCII) devem ser encontrados normalmente."""
+    make_user("tec_search2@example.com", "senha-forte-123", "tecnico")
+    category = make_category("Search Cat 2")
+    headers = auth_headers("tec_search2@example.com", "senha-forte-123")
+
+    client.post(
+        "/articles",
+        json={
+            "title": "Configurando o router da rede",
+            "content": "Acesse o painel do router via navegador.",
+            "category_id": category.id,
+            "status": "published",
+        },
+        headers=headers,
+    )
+
+    response = client.get("/articles/search?q=routers", headers=headers)
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+
+
+def test_search_matches_tag_exactly(
+    client: TestClient, make_user, make_category, auth_headers
+) -> None:
+    """Tags devem casar por correspondência exata (dicionário simple)."""
+    make_user("tec_search3@example.com", "senha-forte-123", "tecnico")
+    category = make_category("Search Cat 3")
+    headers = auth_headers("tec_search3@example.com", "senha-forte-123")
+
+    client.post(
+        "/articles",
+        json={
+            "title": "Procedimento de rede",
+            "content": "Texto genérico sem menção direta ao termo buscado.",
+            "tags": ["VPN"],
+            "category_id": category.id,
+            "status": "published",
+        },
+        headers=headers,
+    )
+
+    response = client.get("/articles/search?q=VPN", headers=headers)
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+
+
+def test_search_excludes_draft_articles_for_solicitante(
+    client: TestClient, make_user, make_category, auth_headers
+) -> None:
+    """A busca não deve retornar artigos em rascunho para o solicitante."""
+    make_user("tec_search4@example.com", "senha-forte-123", "tecnico")
+    make_user("solic_search1@example.com", "senha-forte-123", "solicitante")
+    category = make_category("Search Cat 4")
+    headers_tec = auth_headers("tec_search4@example.com", "senha-forte-123")
+    headers_solic = auth_headers("solic_search1@example.com", "senha-forte-123")
+
+    client.post(
+        "/articles",
+        json={
+            "title": "Artigo rascunho sobre servidor",
+            "content": "Ainda em elaboração.",
+            "category_id": category.id,
+            "status": "draft",
+        },
+        headers=headers_tec,
+    )
+
+    response = client.get("/articles/search?q=servidor", headers=headers_solic)
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_search_with_no_match_returns_empty_list(
+    client: TestClient, make_user, auth_headers
+) -> None:
+    """Busca sem nenhum resultado deve retornar lista vazia, não erro."""
+    make_user("solic_search2@example.com", "senha-forte-123", "solicitante")
+    headers = auth_headers("solic_search2@example.com", "senha-forte-123")
+
+    response = client.get("/articles/search?q=termoquenaoexisteemnenhumlugar", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json() == []

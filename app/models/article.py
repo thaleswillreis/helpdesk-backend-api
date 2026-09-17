@@ -2,6 +2,8 @@
 
 from datetime import UTC, datetime
 
+from sqlalchemy import Column, String
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.category import Category
@@ -16,6 +18,7 @@ class Article(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     title: str = Field(max_length=200)
     content: str
+    tags: list[str] = Field(default_factory=list, sa_column=Column(ARRAY(String)))
 
     status: ArticleStatus = Field(default=ArticleStatus.DRAFT, index=True)
 

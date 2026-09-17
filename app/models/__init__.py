@@ -17,6 +17,7 @@ from app.models.team import Team  # noqa: F401
 from app.models.team_membership import TeamMembership  # noqa: F401
 from app.models.team_schedule import TeamSchedule  # noqa: F401
 from app.models.ticket import Ticket  # noqa: F401
+from app.models.ticket_article import TicketArticle  # noqa: F401
 from app.models.ticket_attachment import TicketAttachment  # noqa: F401
 from app.models.ticket_comment import TicketComment  # noqa: F401
 from app.models.ticket_history import TicketHistory  # noqa: F401

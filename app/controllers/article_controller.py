@@ -14,6 +14,7 @@ from app.services.article_service import (
     create_article,
     get_article,
     list_articles,
+    search_articles,
     update_article,
 )
 
@@ -45,6 +46,19 @@ def get_articles(
 ) -> list[ArticleRead]:
     """Lista artigos visíveis ao usuário, opcionalmente filtrando por categoria."""
     articles = list_articles(session, current_user, category_id)
+    return [ArticleRead.model_validate(a) for a in articles]
+
+
+@router.get("/search", response_model=list[ArticleRead])
+def search_knowledge_base(
+    q: str,
+    skip: int = 0,
+    limit: int = 50,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> list[ArticleRead]:
+    """Busca artigos por relevância (título, conteúdo e tags)."""
+    articles = search_articles(session, current_user, q, skip=skip, limit=limit)
     return [ArticleRead.model_validate(a) for a in articles]
 
 
