@@ -7,9 +7,11 @@ de existir alguma rota/serviço usando o modelo diretamente.
 """
 
 from app.models.article import Article  # noqa: F401
+from app.models.catalog_item_field import CatalogItemField  # noqa: F401
 from app.models.category import Category  # noqa: F401
 from app.models.comment_mention import CommentMention  # noqa: F401
 from app.models.role import Role  # noqa: F401
+from app.models.service_catalog_item import ServiceCatalogItem  # noqa: F401
 from app.models.sla_policy import SLAPolicy  # noqa: F401
 from app.models.subcategory import Subcategory  # noqa: F401
 from app.models.system_settings import SystemSettings  # noqa: F401
@@ -19,6 +21,7 @@ from app.models.team_schedule import TeamSchedule  # noqa: F401
 from app.models.ticket import Ticket  # noqa: F401
 from app.models.ticket_article import TicketArticle  # noqa: F401
 from app.models.ticket_attachment import TicketAttachment  # noqa: F401
+from app.models.ticket_catalog_answer import TicketCatalogAnswer  # noqa: F401
 from app.models.ticket_comment import TicketComment  # noqa: F401
 from app.models.ticket_history import TicketHistory  # noqa: F401
 from app.models.user import User  # noqa: F401

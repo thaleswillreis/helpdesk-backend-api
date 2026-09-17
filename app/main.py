@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from app.controllers.article_controller import router as article_router
 from app.controllers.auth_controller import router as auth_router
 from app.controllers.category_controller import router as category_router
+from app.controllers.service_catalog_controller import router as service_catalog_router
 from app.controllers.sla_policy_controller import router as sla_policy_router
 from app.controllers.system_settings_controller import router as system_settings_router
 from app.controllers.team_controller import router as team_router
@@ -19,10 +20,12 @@ app.include_router(article_router)
 app.include_router(auth_router)
 app.include_router(user_router)
 app.include_router(category_router)
+app.include_router(service_catalog_router)
 app.include_router(sla_policy_router)
 app.include_router(system_settings_router)
 app.include_router(team_router)
 app.include_router(ticket_router)
+
 
 
 @app.get("/health", tags=["health"])

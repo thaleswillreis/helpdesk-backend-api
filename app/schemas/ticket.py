@@ -57,6 +57,7 @@ class TicketRead(BaseModel):
     assigned_to: int | None
     team_id: int | None
     current_level: NivelAtendimento
+    catalog_item_id: int | None
     created_at: datetime
     updated_at: datetime
     resolved_at: datetime | None

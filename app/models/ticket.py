@@ -40,6 +40,8 @@ class Ticket(SQLModel, table=True):
     team_id: int | None = Field(default=None, foreign_key="team.id")
     team: Team | None = Relationship()
 
+    catalog_item_id: int | None = Field(default=None, foreign_key="servicecatalogitem.id")
+
     current_level: NivelAtendimento = Field(
         default=NivelAtendimento.N1,
         description="Fila de nível de atendimento em que o chamado está atualmente.",

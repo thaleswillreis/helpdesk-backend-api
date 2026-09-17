@@ -28,8 +28,10 @@ def _ensure_utc(dt: datetime) -> datetime:
     """
     return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
 
-_PAUSING_STATUS_VALUE = StatusChamado.AGUARDANDO_SOLICITANTE.value
-
+_PAUSING_STATUS_VALUES = {
+    StatusChamado.AGUARDANDO_SOLICITANTE.value,
+    StatusChamado.AGUARDANDO_APROVACAO.value,
+}
 
 class SLAClockStatus(StrEnum):
     """Situação de um relógio de SLA (resposta ou solução)."""
@@ -103,7 +105,7 @@ def _build_segments(ticket: Ticket, history: list[TicketHistory], calc_end: date
                 start=point,
                 end=next_point,
                 team_id=int(team_raw) if team_raw not in (None, "None") else None,
-                is_paused=(status_raw == _PAUSING_STATUS_VALUE),
+                is_paused=(status_raw in _PAUSING_STATUS_VALUES),
             )
         )
 

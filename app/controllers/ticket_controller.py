@@ -12,8 +12,10 @@ from app.models.user import User
 from app.schemas.article import ArticleRead
 from app.schemas.sla_status import SLAClockRead, TicketSLARead
 from app.schemas.ticket import TicketCreate, TicketRead, TicketUpdate
+from app.schemas.ticket_approval import TicketApprovalDecision
 from app.schemas.ticket_article import TicketArticleCreate, TicketArticleRead, TicketArticleUpdate
 from app.schemas.ticket_attachment import TicketAttachmentDownload, TicketAttachmentRead
+from app.schemas.ticket_catalog import TicketCatalogAnswerRead, TicketFromCatalogCreate
 from app.schemas.ticket_comment import TicketCommentCreate, TicketCommentRead
 from app.schemas.ticket_history import TicketHistoryRead
 from app.schemas.ticket_overview import TicketOverviewItem, TicketOverviewPage
@@ -34,6 +36,11 @@ from app.services.comment_service import (
     list_comments,
 )
 from app.services.sla_calculation_service import SLAClockStatus, calculate_sla
+from app.services.ticket_approval_service import (
+    TicketNotFoundError as ApprovalTicketNotFoundError,
+    TicketNotPendingApprovalError,
+    approve_ticket,
+)
 from app.services.ticket_article_service import (
     ArticleNotFoundError,
     DuplicateLinkError,
@@ -45,6 +52,14 @@ from app.services.ticket_article_service import (
     set_resolution,
     suggest_articles,
     unlink_article,
+)
+from app.services.ticket_catalog_service import (
+    CatalogItemNotFoundError,
+    InvalidAnswerValueError,
+    MissingRequiredAnswerError,
+    UnknownFieldError,
+    create_ticket_from_catalog,
+    get_catalog_answers,
 )
 from app.services.ticket_overview_service import get_tickets_overview
 from app.services.ticket_service import (
@@ -97,6 +112,35 @@ def list_my_tickets(
     """Lista chamados visíveis ao usuário autenticado."""
     tickets = list_tickets(session, current_user, skip=skip, limit=limit)
     return [TicketRead.model_validate(ticket) for ticket in tickets]
+
+
+@router.post("/catalog", response_model=TicketRead, status_code=status.HTTP_201_CREATED)
+def add_ticket_from_catalog(
+    data: TicketFromCatalogCreate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> TicketRead:
+    """Abre um chamado a partir de um item do catálogo de serviços, validando o formulário."""
+    try:
+        ticket = create_ticket_from_catalog(session, data, current_user)
+    except CatalogItemNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except (
+        MissingRequiredAnswerError,
+        InvalidAnswerValueError,
+        UnknownFieldError,
+    ) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+    except ForbiddenTicketAccessError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except InvalidRequesterError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+
+    return TicketRead.model_validate(ticket)
 
 
 @router.get("/overview", response_model=TicketOverviewPage)
@@ -182,6 +226,36 @@ def edit_ticket(
         ) from exc
 
     return TicketRead.model_validate(ticket)
+
+
+@router.post("/{ticket_id}/approve", response_model=TicketRead)
+def approve_or_reject_ticket(
+    ticket_id: int,
+    data: TicketApprovalDecision,
+    session: Session = Depends(get_session),
+    admin: User = Depends(require_role("admin")),
+) -> TicketRead:
+    """Aprova ou rejeita um chamado que está aguardando aprovação. Restrito a administradores."""
+    try:
+        ticket = approve_ticket(session, ticket_id, data.approved, data.comment, admin)
+    except ApprovalTicketNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except TicketNotPendingApprovalError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+    return TicketRead.model_validate(ticket)
+
+
+@router.get("/{ticket_id}/catalog-answers", response_model=list[TicketCatalogAnswerRead])
+def read_catalog_answers(
+    ticket_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> list[TicketCatalogAnswerRead]:
+    """Consulta as respostas do formulário de catálogo de um chamado."""
+    get_ticket(session, ticket_id, current_user)  # valida visibilidade (levanta 404)
+    answers = get_catalog_answers(session, ticket_id)
+    return [TicketCatalogAnswerRead(**a) for a in answers]
 
 
 @router.get("/{ticket_id}/history", response_model=list[TicketHistoryRead])

@@ -6,6 +6,7 @@ from enum import StrEnum
 class StatusChamado(StrEnum):
     """Ciclo de vida de um chamado."""
 
+    AGUARDANDO_APROVACAO = "aguardando_aprovacao"
     ABERTO = "aberto"
     EM_ATENDIMENTO = "em_atendimento"
     AGUARDANDO_SOLICITANTE = "aguardando_solicitante"
@@ -20,6 +21,7 @@ STATUS_ENCERRADOS = {StatusChamado.FECHADO, StatusChamado.CANCELADO}
 # Usado no cálculo de SLA (Fase 4): CANCELADO não conta, pois não foi
 # um atendimento real (ex.: usuário resolveu sozinho).
 STATUS_QUE_CONTAM_SLA = {
+    StatusChamado.AGUARDANDO_APROVACAO,
     StatusChamado.ABERTO,
     StatusChamado.EM_ATENDIMENTO,
     StatusChamado.AGUARDANDO_SOLICITANTE,
@@ -69,3 +71,11 @@ class ArticleStatus(StrEnum):
 
     DRAFT = "draft"
     PUBLISHED = "published"
+
+
+class CatalogFieldType(StrEnum):
+    """Tipo de um campo configurável de um item do catálogo de serviços."""
+
+    TEXT = "text"
+    NUMBER = "number"
+    SELECT = "select"
