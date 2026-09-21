@@ -105,3 +105,19 @@ def add_business_minutes(start: datetime, minutes: float, windows: WeeklyWindows
     raise RuntimeError(
         "Não foi possível calcular o prazo: equipe sem nenhuma janela de expediente válida."
     )
+
+
+def is_within_business_hours(moment: datetime, windows: WeeklyWindows | None) -> bool:
+    """Verifica se um instante está dentro do expediente (windows=None -> sempre 24/7)."""
+    if windows is None:
+        return True
+
+    weekday = moment.weekday()
+    current_time = moment.time()
+    for w_start, w_end in windows.get(weekday, []):
+        if w_end == _END_OF_DAY:
+            if w_start <= current_time:
+                return True
+        elif w_start <= current_time < w_end:
+            return True
+    return False

@@ -19,6 +19,7 @@ from app.models.ticket import Ticket
 from app.models.ticket_history import TicketHistory
 from app.models.user import User
 from app.schemas.ticket import TicketCreate, TicketUpdate
+from app.services.triage_service import apply_triage_rules
 
 
 class TicketNotFoundError(Exception):
@@ -61,7 +62,9 @@ class ForbiddenLevelDowngradeError(Exception):
     """Levantado quando um não-admin tenta rebaixar o nível de um chamado."""
 
 
-def _resolve_requester(session: Session, data: TicketCreate, current_user: User) -> User:
+def _resolve_requester(
+    session: Session, data: TicketCreate, current_user: User
+) -> User:
     """Resolve e valida o usuário solicitante do chamado."""
     if data.requester_id is None or data.requester_id == current_user.id:
         return current_user
@@ -116,6 +119,9 @@ def create_ticket(session: Session, data: TicketCreate, current_user: User) -> T
         requester_id=requester.id,
         team_id=category.default_team_id,  # Fila automática pela equipe padrão da categoria.
     )
+
+    apply_triage_rules(session, ticket)
+
     session.add(ticket)
     session.commit()
     session.refresh(ticket)
@@ -148,12 +154,21 @@ def get_ticket(session: Session, ticket_id: int, current_user: User) -> Ticket:
 
 # Campos que geram entrada no histórico quando alterados via PATCH.
 _TRACKED_FIELDS = (
-    "title", "description", "status", "priority",
-    "category_id", "subcategory_id", "assigned_to", "team_id", "current_level",
+    "title",
+    "description",
+    "status",
+    "priority",
+    "category_id",
+    "subcategory_id",
+    "assigned_to",
+    "team_id",
+    "current_level",
 )
 
 
-def _validate_assignee(session: Session, technician_id: int, ticket: Ticket, final_level) -> User:
+def _validate_assignee(
+    session: Session, technician_id: int, ticket: Ticket, final_level
+) -> User:
     """Valida que o técnico existe, tem o nível esperado e pertence à equipe do chamado."""
     technician = session.get(User, technician_id)
     if technician is None or not technician.is_active:
@@ -195,8 +210,14 @@ def update_ticket(
     # Resolve o nível final ANTES de validar o técnico, pois a validação depende dele.
     final_level = update_data.get("current_level", ticket.current_level)
 
-    if "current_level" in update_data and update_data["current_level"] != ticket.current_level:
-        subindo = ORDEM_NIVEL[update_data["current_level"]] > ORDEM_NIVEL[ticket.current_level]
+    if (
+        "current_level" in update_data
+        and update_data["current_level"] != ticket.current_level
+    ):
+        subindo = (
+            ORDEM_NIVEL[update_data["current_level"]]
+            > ORDEM_NIVEL[ticket.current_level]
+        )
         if not subindo and not is_admin(current_user):
             raise ForbiddenLevelDowngradeError(
                 "Somente um administrador pode rebaixar o nível de um chamado."
@@ -204,7 +225,11 @@ def update_ticket(
 
         # Ao mudar de nível sem um técnico específico informado junto, o chamado
         # volta para a fila daquele nível (assigned_to é limpo).
-        if subindo and "assigned_to" not in update_data and ticket.assigned_to is not None:
+        if (
+            subindo
+            and "assigned_to" not in update_data
+            and ticket.assigned_to is not None
+        ):
             update_data["assigned_to"] = None
 
     if "assigned_to" in update_data and update_data["assigned_to"] is not None:
@@ -249,9 +274,13 @@ def update_ticket(
     return ticket
 
 
-def get_ticket_history(session: Session, ticket_id: int, current_user: User) -> list[TicketHistory]:
+def get_ticket_history(
+    session: Session, ticket_id: int, current_user: User
+) -> list[TicketHistory]:
     """Lista o histórico de alterações de um chamado, respeitando a mesma visibilidade do detalhe."""
-    get_ticket(session, ticket_id, current_user)  # valida existência + visibilidade (levanta 404)
+    get_ticket(
+        session, ticket_id, current_user
+    )  # valida existência + visibilidade (levanta 404)
 
     query = (
         select(TicketHistory)

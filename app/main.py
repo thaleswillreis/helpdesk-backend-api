@@ -8,6 +8,7 @@ from app.controllers.sla_policy_controller import router as sla_policy_router
 from app.controllers.system_settings_controller import router as system_settings_router
 from app.controllers.team_controller import router as team_router
 from app.controllers.ticket_controller import router as ticket_router
+from app.controllers.triage_rule_controller import router as triage_rule_router
 from app.controllers.user_controller import router as user_router
 
 app = FastAPI(
@@ -25,7 +26,7 @@ app.include_router(sla_policy_router)
 app.include_router(system_settings_router)
 app.include_router(team_router)
 app.include_router(ticket_router)
-
+app.include_router(triage_rule_router)
 
 
 @app.get("/health", tags=["health"])
