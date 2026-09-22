@@ -10,10 +10,16 @@ from app.core.dependencies import get_current_user, require_role
 from app.models.enums import NivelAtendimento, StatusChamado
 from app.models.user import User
 from app.schemas.article import ArticleRead
+from app.schemas.asset import AssetRead
 from app.schemas.sla_status import SLAClockRead, TicketSLARead
 from app.schemas.ticket import TicketCreate, TicketRead, TicketUpdate
 from app.schemas.ticket_approval import TicketApprovalDecision
-from app.schemas.ticket_article import TicketArticleCreate, TicketArticleRead, TicketArticleUpdate
+from app.schemas.ticket_article import (
+    TicketArticleCreate,
+    TicketArticleRead,
+    TicketArticleUpdate,
+)
+from app.schemas.ticket_asset import TicketAssetCreate, TicketAssetRead
 from app.schemas.ticket_attachment import TicketAttachmentDownload, TicketAttachmentRead
 from app.schemas.ticket_catalog import TicketCatalogAnswerRead, TicketFromCatalogCreate
 from app.schemas.ticket_comment import TicketCommentCreate, TicketCommentRead
@@ -52,6 +58,16 @@ from app.services.ticket_article_service import (
     set_resolution,
     suggest_articles,
     unlink_article,
+)
+from app.services.ticket_asset_service import (
+    AssetNotFoundError,
+    DuplicateLinkError as AssetDuplicateLinkError,
+    LinkNotFoundError as AssetLinkNotFoundError,
+    TicketNotFoundError as AssetLinkTicketNotFoundError,
+    link_asset,
+    list_linked_assets,
+    suggest_affected_assets,
+    unlink_asset,
 )
 from app.services.ticket_catalog_service import (
     CatalogItemNotFoundError,
@@ -93,8 +109,14 @@ def open_ticket(
     try:
         ticket = create_ticket(session, data, current_user)
     except ForbiddenTicketAccessError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
-    except (InvalidRequesterError, CategoryNotFoundError, SubcategoryMismatchError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)
+        ) from exc
+    except (
+        InvalidRequesterError,
+        CategoryNotFoundError,
+        SubcategoryMismatchError,
+    ) as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
         ) from exc
@@ -124,7 +146,9 @@ def add_ticket_from_catalog(
     try:
         ticket = create_ticket_from_catalog(session, data, current_user)
     except CatalogItemNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
     except (
         MissingRequiredAnswerError,
         InvalidAnswerValueError,
@@ -134,7 +158,9 @@ def add_ticket_from_catalog(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
         ) from exc
     except ForbiddenTicketAccessError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)
+        ) from exc
     except InvalidRequesterError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
@@ -173,14 +199,14 @@ def read_tickets_overview(
     )
 
     items = [
-    TicketOverviewItem(
-        **TicketRead.model_validate(ticket).model_dump(),
-        sla_applicable=sla is not None,
-        sla_response=SLAClockRead(**sla["response"].__dict__) if sla else None,
-        sla_resolution=SLAClockRead(**sla["resolution"].__dict__) if sla else None,
-    )
-    for ticket, sla in results
-]
+        TicketOverviewItem(
+            **TicketRead.model_validate(ticket).model_dump(),
+            sla_applicable=sla is not None,
+            sla_response=SLAClockRead(**sla["response"].__dict__) if sla else None,
+            sla_resolution=SLAClockRead(**sla["resolution"].__dict__) if sla else None,
+        )
+        for ticket, sla in results
+    ]
 
     return TicketOverviewPage(total=total, skip=skip, limit=limit, items=items)
 
@@ -195,7 +221,9 @@ def read_ticket(
     try:
         ticket = get_ticket(session, ticket_id, current_user)
     except TicketNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
 
     return TicketRead.model_validate(ticket)
 
@@ -211,9 +239,13 @@ def edit_ticket(
     try:
         ticket = update_ticket(session, ticket_id, data, staff)
     except TicketNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
     except ForbiddenLevelDowngradeError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)
+        ) from exc
     except (
         InvalidAssigneeError,
         CategoryNotFoundError,
@@ -239,14 +271,20 @@ def approve_or_reject_ticket(
     try:
         ticket = approve_ticket(session, ticket_id, data.approved, data.comment, admin)
     except ApprovalTicketNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
     except TicketNotPendingApprovalError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+        ) from exc
 
     return TicketRead.model_validate(ticket)
 
 
-@router.get("/{ticket_id}/catalog-answers", response_model=list[TicketCatalogAnswerRead])
+@router.get(
+    "/{ticket_id}/catalog-answers", response_model=list[TicketCatalogAnswerRead]
+)
 def read_catalog_answers(
     ticket_id: int,
     session: Session = Depends(get_session),
@@ -268,13 +306,17 @@ def read_ticket_history(
     try:
         history = get_ticket_history(session, ticket_id, current_user)
     except TicketNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
 
     return [TicketHistoryRead.model_validate(entry) for entry in history]
 
 
 @router.post(
-    "/{ticket_id}/comments", response_model=TicketCommentRead, status_code=status.HTTP_201_CREATED
+    "/{ticket_id}/comments",
+    response_model=TicketCommentRead,
+    status_code=status.HTTP_201_CREATED,
 )
 def add_comment(
     ticket_id: int,
@@ -286,9 +328,13 @@ def add_comment(
     try:
         comment, mentioned_ids = create_comment(session, ticket_id, data, current_user)
     except CommentTicketNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
     except ForbiddenInternalCommentError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)
+        ) from exc
     except InvalidMentionError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
@@ -315,7 +361,9 @@ def read_comments(
     try:
         comments = list_comments(session, ticket_id, current_user)
     except CommentTicketNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
 
     return [TicketCommentRead(**comment) for comment in comments]
 
@@ -343,7 +391,9 @@ async def add_attachment(
             current_user,
         )
     except AttachmentTicketNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
     except (InvalidFileExtensionError, FileTooLargeError) as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
@@ -365,7 +415,8 @@ def read_attachments(
 
 
 @router.get(
-    "/{ticket_id}/attachments/{attachment_id}/download", response_model=TicketAttachmentDownload
+    "/{ticket_id}/attachments/{attachment_id}/download",
+    response_model=TicketAttachmentDownload,
 )
 def download_attachment(
     ticket_id: int,
@@ -378,7 +429,9 @@ def download_attachment(
     try:
         url = get_download_url(session, attachment_id)
     except AttachmentNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
 
     return TicketAttachmentDownload(download_url=url)
 
@@ -393,7 +446,9 @@ def read_ticket_sla(
     try:
         ticket = get_ticket(session, ticket_id, current_user)
     except TicketNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
 
     result = calculate_sla(session, ticket)
     if result is None:
@@ -408,7 +463,9 @@ def read_ticket_sla(
 
 
 @router.post(
-    "/{ticket_id}/articles", response_model=TicketArticleRead, status_code=status.HTTP_201_CREATED
+    "/{ticket_id}/articles",
+    response_model=TicketArticleRead,
+    status_code=status.HTTP_201_CREATED,
 )
 def add_ticket_article(
     ticket_id: int,
@@ -420,13 +477,17 @@ def add_ticket_article(
     try:
         link = link_article(session, ticket_id, data.article_id, staff)
     except ArticleLinkTicketNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
     except ArticleNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
         ) from exc
     except DuplicateLinkError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+        ) from exc
 
     return TicketArticleRead.model_validate(link)
 
@@ -441,7 +502,9 @@ def read_ticket_articles(
     try:
         links = list_linked_articles(session, ticket_id, current_user)
     except ArticleLinkTicketNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
 
     return [TicketArticleRead.model_validate(link) for link in links]
 
@@ -457,7 +520,9 @@ def read_article_suggestions(
     try:
         articles = suggest_articles(session, ticket_id, current_user, limit=limit)
     except ArticleLinkTicketNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
 
     return [ArticleRead.model_validate(a) for a in articles]
 
@@ -474,7 +539,9 @@ def edit_ticket_article(
     try:
         link = set_resolution(session, ticket_id, article_id, data.is_resolution)
     except LinkNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
     except TicketNotYetResolvedError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
@@ -483,7 +550,9 @@ def edit_ticket_article(
     return TicketArticleRead.model_validate(link)
 
 
-@router.delete("/{ticket_id}/articles/{article_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{ticket_id}/articles/{article_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 def remove_ticket_article(
     ticket_id: int,
     article_id: int,
@@ -494,4 +563,78 @@ def remove_ticket_article(
     try:
         unlink_article(session, ticket_id, article_id)
     except LinkNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
+
+
+@router.post(
+    "/{ticket_id}/assets", response_model=TicketAssetRead, status_code=status.HTTP_201_CREATED
+)
+def add_ticket_asset(
+    ticket_id: int,
+    data: TicketAssetCreate,
+    session: Session = Depends(get_session),
+    staff: User = Depends(require_role("admin", "tecnico")),
+) -> TicketAssetRead:
+    """Vincula manualmente um ativo a um chamado. Restrito a admin/tecnico."""
+    try:
+        link = link_asset(session, ticket_id, data, staff)
+    except AssetLinkTicketNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except AssetNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+    except AssetDuplicateLinkError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+    return TicketAssetRead.model_validate(link)
+
+
+@router.get("/{ticket_id}/assets/affected-suggestions", response_model=list[AssetRead])
+def read_affected_asset_suggestions(
+    ticket_id: int,
+    session: Session = Depends(get_session),
+    _staff: User = Depends(require_role("admin", "tecnico")),
+) -> list[AssetRead]:
+    """Sugere ativos potencialmente afetados via grafo de dependências. Só leitura."""
+    try:
+        assets = suggest_affected_assets(session, ticket_id)
+    except AssetLinkTicketNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
+
+    return [AssetRead.model_validate(a) for a in assets]
+
+
+@router.get("/{ticket_id}/assets", response_model=list[TicketAssetRead])
+def read_ticket_assets(
+    ticket_id: int,
+    session: Session = Depends(get_session),
+    _staff: User = Depends(require_role("admin", "tecnico")),
+) -> list[TicketAssetRead]:
+    """Lista os ativos vinculados a um chamado. Restrito a admin/tecnico."""
+    try:
+        links = list_linked_assets(session, ticket_id)
+    except AssetLinkTicketNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
+
+    return [TicketAssetRead.model_validate(link) for link in links]
+
+
+@router.delete("/{ticket_id}/assets/{asset_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_ticket_asset(
+    ticket_id: int,
+    asset_id: int,
+    session: Session = Depends(get_session),
+    _staff: User = Depends(require_role("admin", "tecnico")),
+) -> None:
+    """Remove o vínculo entre um chamado e um ativo. Restrito a admin/tecnico."""
+    try:
+        unlink_asset(session, ticket_id, asset_id)
+    except AssetLinkNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
