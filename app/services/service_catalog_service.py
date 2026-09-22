@@ -52,6 +52,9 @@ def create_item(session: Session, data: ServiceCatalogItemCreate) -> ServiceCata
         category_id=data.category_id,
         subcategory_id=data.subcategory_id,
         requires_approval=data.requires_approval,
+        auto_approve_if_vip=data.auto_approve_if_vip,
+        approval_timeout_hours=data.approval_timeout_hours,
+        approval_timeout_action=data.approval_timeout_action,
     )
     session.add(item)
     session.commit()

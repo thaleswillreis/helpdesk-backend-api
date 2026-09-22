@@ -90,3 +90,10 @@ class WebhookEventType(StrEnum):
     TICKET_ASSIGNED = "ticket.assigned"
     TICKET_COMMENT_CREATED = "ticket.comment_created"
     TICKET_MENTIONED = "ticket.mentioned"
+
+
+class ApprovalTimeoutAction(StrEnum):
+    """Ação automática aplicada quando o prazo de aprovação de um item expira."""
+
+    AUTO_APPROVE = "auto_approve"
+    AUTO_REJECT = "auto_reject"

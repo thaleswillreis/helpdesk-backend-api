@@ -2,6 +2,9 @@
 
 from datetime import UTC, datetime
 
+from sqlalchemy import Column
+from sqlalchemy import Enum as SAEnum
+
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.category import Category
@@ -18,7 +21,17 @@ class Ticket(SQLModel, table=True):
     title: str = Field(max_length=200)
     description: str
 
-    status: StatusChamado = Field(default=StatusChamado.ABERTO, index=True)
+    status: StatusChamado = Field(
+        default=StatusChamado.ABERTO,
+        sa_column=Column(
+            SAEnum(
+                StatusChamado,
+                values_callable=lambda enum_cls: [e.value for e in enum_cls],
+                name="statuschamado",
+            ),
+            index=True,
+        ),
+    )
     priority: PrioridadeChamado = Field(index=True)
 
     category_id: int = Field(foreign_key="category.id")

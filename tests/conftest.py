@@ -4,7 +4,7 @@ from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session, SQLModel, create_engine, select
 
 from app.core.config import settings
 from app.core.database import get_session
@@ -15,26 +15,39 @@ engine = create_engine(settings.test_database_url, echo=False)
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_database() -> Generator[None, None, None]:
-    """Cria tabelas e papéis básicos no banco de testes antes da suíte."""
+    """Cria tabelas, papéis básicos e o usuário sistema no banco de testes antes da suíte."""
     SQLModel.metadata.create_all(engine)
 
     with Session(engine) as session:
+        from app.core.constants import SYSTEM_USER_EMAIL
         from app.models.role import Role
+        from app.models.user import User
 
         for name in ("admin", "tecnico", "solicitante"):
             session.add(Role(name=name))
         session.commit()
 
+        admin_role = session.exec(select(Role).where(Role.name == "admin")).first()
+        session.add(
+            User(
+                name="Automação do Sistema",
+                email=SYSTEM_USER_EMAIL,
+                hashed_password="unusable-system-account",
+                role_id=admin_role.id if admin_role else None,
+                is_active=True,
+            )
+        )
+        session.commit()
+
         # search_vector é mantido por trigger no Postgres, não pelo SQLModel/ORM
         # (to_tsvector com configuração de idioma não é IMMUTABLE, então não pode
         # ser GENERATED ALWAYS AS). create_all() não recria esse recurso puramente
-        # SQL, então replicamos aqui o mesmo DDL da migration a7c3e8f291bd.
+        # SQL, então replicamos aqui o mesmo DDL das migrations de busca de artigos.
         from sqlalchemy import text
 
         session.execute(
             text("ALTER TABLE article ADD COLUMN IF NOT EXISTS search_vector tsvector")
         )
-
         session.execute(
             text(
                 """
@@ -51,7 +64,6 @@ def setup_test_database() -> Generator[None, None, None]:
                 """
             )
         )
-
         session.execute(
             text(
                 """
@@ -117,8 +129,6 @@ def client(session: Session) -> Generator[TestClient, None, None]:
 @pytest.fixture
 def make_user(session: Session):
     """Factory de usuário de teste, vinculado a um papel pelo nome."""
-    from sqlmodel import select
-
     from app.core.security import hash_password
     from app.models.role import Role
     from app.models.user import User

@@ -11,6 +11,8 @@ from app.models.user import User
 from app.schemas.ticket import TicketCreate
 from app.schemas.ticket_catalog import TicketFromCatalogCreate
 from app.services.ticket_service import create_ticket
+from app.services.system_user_service import get_system_user
+from app.services.ticket_approval_service import approve_ticket
 
 
 class CatalogItemNotFoundError(Exception):
@@ -29,16 +31,16 @@ class UnknownFieldError(Exception):
     """Levantado quando uma resposta referencia um campo que não pertence ao item."""
 
 
-def _validate_answers(
-    fields: list[CatalogItemField], answers: list
-) -> dict[int, str]:
+def _validate_answers(fields: list[CatalogItemField], answers: list) -> dict[int, str]:
     """Valida as respostas contra os campos configurados e retorna um mapa field_id -> value."""
     fields_by_id = {f.id: f for f in fields}
     answers_by_field = {a.field_id: a.value for a in answers}
 
     for field_id in answers_by_field:
         if field_id not in fields_by_id:
-            raise UnknownFieldError(f"Campo (id={field_id}) não pertence a este item de catálogo.")
+            raise UnknownFieldError(
+                f"Campo (id={field_id}) não pertence a este item de catálogo."
+            )
 
     for field in fields:
         value = answers_by_field.get(field.id)
@@ -98,18 +100,35 @@ def create_ticket_from_catalog(
     session.add(ticket)
 
     for field_id, value in answers_by_field.items():
-        session.add(TicketCatalogAnswer(ticket_id=ticket.id, field_id=field_id, value=value))
+        session.add(
+            TicketCatalogAnswer(ticket_id=ticket.id, field_id=field_id, value=value)
+        )
 
     session.commit()
     session.refresh(ticket)
+
+    if item.requires_approval and item.auto_approve_if_vip:
+        requester = session.get(User, ticket.requester_id)
+        if requester is not None and requester.is_vip:
+            system_user = get_system_user(session)
+            ticket = approve_ticket(
+                session,
+                ticket.id,
+                True,
+                "Aprovação automática: solicitante VIP.",
+                system_user,
+            )
+
     return ticket
 
 
 def get_catalog_answers(session: Session, ticket_id: int) -> list[dict]:
     """Retorna as respostas do formulário de um chamado, com o rótulo de cada campo."""
-    query = select(TicketCatalogAnswer, CatalogItemField).join(
-        CatalogItemField, TicketCatalogAnswer.field_id == CatalogItemField.id
-    ).where(TicketCatalogAnswer.ticket_id == ticket_id)
+    query = (
+        select(TicketCatalogAnswer, CatalogItemField)
+        .join(CatalogItemField, TicketCatalogAnswer.field_id == CatalogItemField.id)
+        .where(TicketCatalogAnswer.ticket_id == ticket_id)
+    )
 
     return [
         {"field_id": field.id, "label": field.label, "value": answer.value}

@@ -3,6 +3,7 @@
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.category import Category
+from app.models.enums import ApprovalTimeoutAction
 from app.models.subcategory import Subcategory
 
 
@@ -20,7 +21,13 @@ class ServiceCatalogItem(SQLModel, table=True):
     subcategory: Subcategory | None = Relationship()
 
     is_active: bool = Field(default=True)
-    requires_approval: bool = Field(
+    requires_approval: bool = Field(default=False)
+    auto_approve_if_vip: bool = Field(
         default=False,
-        description="Se True, chamados abertos a partir deste item nascem aguardando aprovação.",
+        description="Se True, solicitações de usuários VIP são aprovadas automaticamente.",
     )
+    approval_timeout_hours: int | None = Field(
+        default=None,
+        description="Horas até a decisão automática ser aplicada, se ninguém decidir antes.",
+    )
+    approval_timeout_action: ApprovalTimeoutAction | None = Field(default=None)
