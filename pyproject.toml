@@ -7,7 +7,9 @@ requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.19.1",
     "argon2-cffi>=25.1.0",
+    "celery[redis]>=5.4.0",
     "fastapi>=0.141.1",
+    "httpx>=0.28.0",
     "minio>=7.2.0",
     "psycopg[binary]>=3.2.0",
     "pydantic-settings>=2.6.0",

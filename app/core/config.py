@@ -33,12 +33,25 @@ class Settings(BaseSettings):
 
     max_attachment_size_mb: int = 10
     allowed_attachment_extensions: set[str] = {
-        "jpg", "jpeg", "png", "gif", "pdf", "doc", "docx", "xls", "xlsx", "txt", "zip",
+        "jpg",
+        "jpeg",
+        "png",
+        "gif",
+        "pdf",
+        "doc",
+        "docx",
+        "xls",
+        "xlsx",
+        "txt",
+        "zip",
     }
 
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
+
+    redis_url: str = "redis://localhost:6380/0"
+    webhook_timeout_seconds: int = 5
 
     @property
     def database_url(self) -> str:

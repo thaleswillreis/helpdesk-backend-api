@@ -11,6 +11,7 @@ from app.models.enums import (
     STATUS_ENCERRADOS,
     PrioridadeChamado,
     StatusChamado,
+    WebhookEventType,
 )
 from app.models.subcategory import Subcategory
 from app.models.team import Team
@@ -19,6 +20,7 @@ from app.models.ticket import Ticket
 from app.models.ticket_history import TicketHistory
 from app.models.user import User
 from app.schemas.ticket import TicketCreate, TicketUpdate
+from app.services.notification_service import dispatch_event
 from app.services.triage_service import apply_triage_rules
 
 
@@ -271,6 +273,27 @@ def update_ticket(
         session.add(entry)
     session.commit()
     session.refresh(ticket)
+
+    for entry in history_entries:
+        if entry.field_name == "status":
+            dispatch_event(
+                session,
+                WebhookEventType.TICKET_STATUS_CHANGED,
+                {
+                    "ticket_id": ticket.id,
+                    "old_status": entry.old_value,
+                    "new_status": entry.new_value,
+                },
+                ticket_id=ticket.id,
+            )
+        elif entry.field_name == "assigned_to" and entry.new_value is not None:
+            dispatch_event(
+                session,
+                WebhookEventType.TICKET_ASSIGNED,
+                {"ticket_id": ticket.id, "assigned_to": int(entry.new_value)},
+                ticket_id=ticket.id,
+            )
+
     return ticket
 
 

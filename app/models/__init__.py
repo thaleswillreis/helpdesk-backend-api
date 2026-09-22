@@ -26,3 +26,5 @@ from app.models.ticket_comment import TicketComment  # noqa: F401
 from app.models.ticket_history import TicketHistory  # noqa: F401
 from app.models.triage_rule import TriageRule  # noqa: F401
 from app.models.user import User  # noqa: F401
+from app.models.webhook_delivery import WebhookDelivery  # noqa: F401
+from app.models.webhook_subscription import WebhookSubscription  # noqa: F401

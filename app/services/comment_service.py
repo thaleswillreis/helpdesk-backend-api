@@ -4,9 +4,11 @@ from sqlmodel import Session, select
 
 from app.core.roles import is_staff
 from app.models.comment_mention import CommentMention
+from app.models.enums import WebhookEventType
 from app.models.ticket import Ticket
 from app.models.ticket_comment import TicketComment
 from app.models.user import User
+from app.services.notification_service import dispatch_event
 from app.schemas.ticket_comment import TicketCommentCreate
 
 
@@ -22,7 +24,9 @@ class InvalidMentionError(Exception):
     """Levantado quando um usuário mencionado não existe ou está inativo."""
 
 
-def _check_ticket_visibility(session: Session, ticket_id: int, current_user: User) -> Ticket:
+def _check_ticket_visibility(
+    session: Session, ticket_id: int, current_user: User
+) -> Ticket:
     ticket = session.get(Ticket, ticket_id)
     if ticket is None:
         raise TicketNotFoundError("Chamado não encontrado.")
@@ -62,6 +66,30 @@ def create_comment(
     for user_id in data.mentioned_user_ids:
         session.add(CommentMention(comment_id=comment.id, mentioned_user_id=user_id))
     session.commit()
+
+    if not comment.is_internal:
+        dispatch_event(
+            session,
+            WebhookEventType.TICKET_COMMENT_CREATED,
+            {
+                "ticket_id": ticket_id,
+                "comment_id": comment.id,
+                "author_id": comment.author_id,
+            },
+            ticket_id=ticket_id,
+        )
+
+    for user_id in data.mentioned_user_ids:
+        dispatch_event(
+            session,
+            WebhookEventType.TICKET_MENTIONED,
+            {
+                "ticket_id": ticket_id,
+                "comment_id": comment.id,
+                "mentioned_user_id": user_id,
+            },
+            ticket_id=ticket_id,
+        )
 
     return comment, data.mentioned_user_ids
 

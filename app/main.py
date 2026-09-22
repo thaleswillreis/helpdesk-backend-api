@@ -10,6 +10,9 @@ from app.controllers.team_controller import router as team_router
 from app.controllers.ticket_controller import router as ticket_router
 from app.controllers.triage_rule_controller import router as triage_rule_router
 from app.controllers.user_controller import router as user_router
+from app.controllers.webhook_subscription_controller import (
+    router as webhook_subscription_router,
+)
 
 app = FastAPI(
     title="Helpdesk API",
@@ -27,6 +30,7 @@ app.include_router(system_settings_router)
 app.include_router(team_router)
 app.include_router(ticket_router)
 app.include_router(triage_rule_router)
+app.include_router(webhook_subscription_router)
 
 
 @app.get("/health", tags=["health"])

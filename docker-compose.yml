@@ -24,6 +24,7 @@ services:
     environment:
       POSTGRES_HOST: db
       MINIO_INTERNAL_ENDPOINT: minio:9000
+      REDIS_URL: redis://redis:6379/0
     ports:
       - "8000:8000"
     volumes:
@@ -63,6 +64,32 @@ services:
       mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
       mc mb --ignore-existing local/$${MINIO_BUCKET_NAME}
       "
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  celery-worker:
+    build: .
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+      MINIO_INTERNAL_ENDPOINT: minio:9000
+      REDIS_URL: redis://redis:6379/0
+    command: uv run celery -A app.core.celery_app worker --loglevel=info
+    volumes:
+      - ./app:/app/app
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
 
 volumes:
   postgres_data:

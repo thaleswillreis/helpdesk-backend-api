@@ -37,7 +37,9 @@ class PrioridadeChamado(StrEnum):
     MEDIA = "media"
     ALTA = "alta"
     CRITICA = "critica"
-    VIP = "vip"  # SLA equivalente a CRITICA; serve como alerta/destaque para os técnicos.
+    VIP = (
+        "vip"  # SLA equivalente a CRITICA; serve como alerta/destaque para os técnicos.
+    )
 
 
 # Peso para ordenação de fila (Fase 3) — quanto maior, mais prioritário.
@@ -79,3 +81,12 @@ class CatalogFieldType(StrEnum):
     TEXT = "text"
     NUMBER = "number"
     SELECT = "select"
+
+
+class WebhookEventType(StrEnum):
+    """Tipos de evento que podem disparar uma notificação via webhook."""
+
+    TICKET_STATUS_CHANGED = "ticket.status_changed"
+    TICKET_ASSIGNED = "ticket.assigned"
+    TICKET_COMMENT_CREATED = "ticket.comment_created"
+    TICKET_MENTIONED = "ticket.mentioned"
