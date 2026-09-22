@@ -99,3 +99,36 @@ class ApprovalTimeoutAction(StrEnum):
 
     AUTO_APPROVE = "auto_approve"
     AUTO_REJECT = "auto_reject"
+
+
+class AssetType(StrEnum):
+    """Tipo de um ativo cadastrado no CMDB."""
+
+    NOTEBOOK = "notebook"
+    DESKTOP = "desktop"
+    MONITOR = "monitor"
+    IMPRESSORA = "impressora"
+    SERVIDOR = "servidor"
+    SERVIDOR_VIRTUAL = "servidor_virtual"
+    SWITCH = "switch"
+    ROTEADOR = "roteador"
+    NOBREAK = "nobreak"
+    OUTRO = "outro"
+
+
+class AssetStatus(StrEnum):
+    """Situação atual de um ativo."""
+
+    EM_USO = "em_uso"
+    ESTOQUE = "estoque"
+    MANUTENCAO = "manutencao"
+    BAIXADO = "baixado"
+
+
+class AssetRelationshipType(StrEnum):
+    """Tipo de dependência/relação entre dois ativos."""
+
+    HOSPEDA = "hospeda"
+    CONECTADO_A = "conectado_a"
+    ALIMENTA = "alimenta"
+    MESMA_REDE_QUE = "mesma_rede_que"

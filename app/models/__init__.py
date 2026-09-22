@@ -7,6 +7,8 @@ de existir alguma rota/serviço usando o modelo diretamente.
 """
 
 from app.models.article import Article  # noqa: F401
+from app.models.asset import Asset  # noqa: F401
+from app.models.asset_relationship import AssetRelationship  # noqa: F401
 from app.models.catalog_item_field import CatalogItemField  # noqa: F401
 from app.models.category import Category  # noqa: F401
 from app.models.comment_mention import CommentMention  # noqa: F401
