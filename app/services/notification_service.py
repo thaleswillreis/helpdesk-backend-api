@@ -4,7 +4,6 @@ from sqlmodel import Session, select
 
 from app.models.enums import WebhookEventType
 from app.models.webhook_subscription import WebhookSubscription
-from app.tasks.webhook_tasks import send_webhook_notification
 
 
 def dispatch_event(
@@ -13,7 +12,16 @@ def dispatch_event(
     payload: dict,
     ticket_id: int | None = None,
 ) -> None:
-    """Enfileira uma tarefa Celery para cada assinatura ativa interessada neste evento."""
+    """Enfileira uma tarefa Celery para cada assinatura ativa interessada neste evento.
+
+    O import de send_webhook_notification é feito aqui dentro (não no topo do
+    arquivo) de propósito: evita um import circular, já que celery_app.py
+    precisa importar todos os módulos de app/tasks/ (incluindo sla_tasks, que
+    depende de sla_notification_service, que depende deste módulo) para o
+    worker do Celery reconhecer as tarefas.
+    """
+    from app.tasks.webhook_tasks import send_webhook_notification
+
     query = select(WebhookSubscription).where(WebhookSubscription.is_active.is_(True))
     subscriptions = session.exec(query)
 

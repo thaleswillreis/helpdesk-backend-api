@@ -90,6 +90,8 @@ class WebhookEventType(StrEnum):
     TICKET_ASSIGNED = "ticket.assigned"
     TICKET_COMMENT_CREATED = "ticket.comment_created"
     TICKET_MENTIONED = "ticket.mentioned"
+    TICKET_SLA_AT_RISK = "ticket.sla_at_risk"
+    TICKET_SLA_BREACHED = "ticket.sla_breached"
 
 
 class ApprovalTimeoutAction(StrEnum):

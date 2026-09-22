@@ -12,6 +12,7 @@ from app.models.category import Category  # noqa: F401
 from app.models.comment_mention import CommentMention  # noqa: F401
 from app.models.role import Role  # noqa: F401
 from app.models.service_catalog_item import ServiceCatalogItem  # noqa: F401
+from app.models.sla_notification_state import SlaNotificationState  # noqa: F401
 from app.models.sla_policy import SLAPolicy  # noqa: F401
 from app.models.subcategory import Subcategory  # noqa: F401
 from app.models.system_settings import SystemSettings  # noqa: F401

@@ -16,6 +16,10 @@ celery_app.conf.beat_schedule = {
         "task": "check_approval_timeouts",
         "schedule": 300.0,
     },
+    "check-sla-notifications-every-15-minutes": {
+        "task": "check_sla_notifications",
+        "schedule": 900.0,
+    },
 }
 
 # Importado ao final, depois de celery_app já criado e configurado: garante que
@@ -23,4 +27,4 @@ celery_app.conf.beat_schedule = {
 # conheça as tarefas definidas nesses módulos. Sem isso, o worker rejeitaria
 # as tarefas com "Received unregistered task" — a instância do Celery só sabe
 # de tarefas cujos módulos foram de fato importados neste processo.
-from app.tasks import approval_tasks, webhook_tasks  # noqa: E402, F401
+from app.tasks import approval_tasks, sla_tasks, webhook_tasks  # noqa: E402, F401
