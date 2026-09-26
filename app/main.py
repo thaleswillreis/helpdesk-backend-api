@@ -18,10 +18,37 @@ from app.controllers.webhook_subscription_controller import (
     router as webhook_subscription_router,
 )
 
+tags_metadata = [
+    {"name": "health", "description": "Verificação de disponibilidade da API."},
+    {"name": "auth", "description": "Autenticação: login, refresh token e usuário autenticado."},
+    {"name": "users", "description": "Cadastro e gestão de usuários (restrito a administradores)."},
+    {"name": "categories", "description": "Categorias e subcategorias de classificação de chamados."},
+    {"name": "teams", "description": "Equipes de atendimento, membros e expediente."},
+    {"name": "tickets", "description": "Ciclo de vida completo dos chamados: CRUD, histórico, comentários, anexos, SLA, vínculo com artigos e ativos, catálogo e aprovação."},
+    {"name": "knowledge-base", "description": "Artigos da base de conhecimento, com busca full-text bilíngue."},
+    {"name": "service-catalog", "description": "Catálogo de serviços com formulários tipados e fluxo de aprovação."},
+    {"name": "automation", "description": "Motor de regras de triagem e assinaturas de webhook."},
+    {"name": "settings", "description": "Configurações globais do sistema (ex.: limiar de risco de SLA)."},
+    {"name": "sla", "description": "Políticas de SLA por prioridade."},
+    {"name": "cmdb", "description": "Ativos de TI e relacionamentos de dependência (CMDB)."},
+    {"name": "dashboard", "description": "Indicadores agregados, KPIs e exportação de dados em CSV."},
+]
+
 app = FastAPI(
     title="Helpdesk API",
-    description="Backend de um sistema de abertura de chamados.",
-    version="0.1.0",
+    description=(
+        "Backend de um sistema de abertura e gestão de chamados (Helpdesk/ITSM), "
+        "construído em camadas (Controllers/Services/Models) com FastAPI.\n\n"
+        "Cobre autenticação e RBAC, gestão de chamados com escalonamento por nível, "
+        "cálculo de SLA respeitando expediente por equipe, base de conhecimento com "
+        "busca full-text, catálogo de serviços com aprovação, CMDB, automação via "
+        "webhooks e Celery, e indicadores de gestão.\n\n"
+        "Repositório: https://github.com/thaleswillreis/helpdesk-backend-api"
+    ),
+    version="1.0.0",
+    contact={"name": "Thales Will S. Reis", "url": "https://github.com/thaleswillreis"},
+    license_info={"name": "MIT", "url": "https://github.com/thaleswillreis/helpdesk-backend-api/blob/main/LICENSE"},
+    openapi_tags=tags_metadata,
 )
 
 app.include_router(article_router)
