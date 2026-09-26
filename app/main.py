@@ -4,6 +4,9 @@ from app.controllers.article_controller import router as article_router
 from app.controllers.asset_controller import router as asset_router
 from app.controllers.auth_controller import router as auth_router
 from app.controllers.category_controller import router as category_router
+from app.controllers.dashboard_controller import router as dashboard_router
+from app.controllers.export_controller import router as export_router
+from app.controllers.kpi_controller import router as kpi_router
 from app.controllers.service_catalog_controller import router as service_catalog_router
 from app.controllers.sla_policy_controller import router as sla_policy_router
 from app.controllers.system_settings_controller import router as system_settings_router
@@ -33,6 +36,9 @@ app.include_router(team_router)
 app.include_router(ticket_router)
 app.include_router(triage_rule_router)
 app.include_router(webhook_subscription_router)
+app.include_router(dashboard_router)
+app.include_router(kpi_router)
+app.include_router(export_router)
 
 
 @app.get("/health", tags=["health"])

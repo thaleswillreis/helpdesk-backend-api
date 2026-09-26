@@ -100,7 +100,7 @@ O projeto está sendo construído de forma incremental, seguindo um backlog divi
 - [x] Fase 6 — Catálogo de serviços
 - [x] Fase 7 — Automação
 - [x] Fase 8 — Ativos/CMDB
-- [ ] Fase 9 — Gestão e indicadores
+- [x] Fase 9 — Gestão e indicadores
 - [ ] Fase 10 — Finalização
 
 ## Licença
