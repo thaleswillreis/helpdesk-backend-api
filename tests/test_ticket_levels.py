@@ -15,7 +15,7 @@ def _setup_team_and_category(client: TestClient, headers_admin: str) -> tuple[di
 
 def test_ticket_starts_at_level_n1(client: TestClient, make_user, auth_headers) -> None:
     """Um chamado novo deve nascer no nível N1."""
-    admin = make_user("admin_lvl1@example.com", "senha-forte-123", "admin")
+    make_user("admin_lvl1@example.com", "senha-forte-123", "admin")
     headers_admin = auth_headers("admin_lvl1@example.com", "senha-forte-123")
     make_user("solic_lvl1@example.com", "senha-forte-123", "solicitante")
     headers_solic = auth_headers("solic_lvl1@example.com", "senha-forte-123")

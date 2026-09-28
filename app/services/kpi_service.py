@@ -10,7 +10,6 @@ from datetime import UTC, date, datetime, timedelta
 
 from sqlmodel import Session, select
 
-from app.models.enums import NivelAtendimento
 from app.models.ticket import Ticket
 from app.models.user import User
 from app.schemas.kpi import KpiTrend, TechnicianKpi, TechnicianKpiList, TrendPoint

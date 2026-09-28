@@ -10,7 +10,6 @@ from app.models.enums import ArticleStatus
 from app.models.ticket import Ticket
 from app.models.ticket_article import TicketArticle
 from app.models.user import User
-from app.services.article_service import search_articles
 
 
 

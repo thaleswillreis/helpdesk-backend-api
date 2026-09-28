@@ -122,7 +122,7 @@ O objetivo deste projeto de portfólio é desenvolver, de forma realista, o back
 
 - [ ] **Fase 10 — Finalização**
   - [x] 10.1 Documentação (README, customização do Swagger)
-  - [ ] 10.2 CI/CD (pipeline de lint/testes)
+  - [x] 10.2 CI/CD (pipeline de lint/testes)
   - [ ] 10.3 Deploy em ambiente demonstrável (guia em `DEPLOY.md`)
 
 ## Como Reproduzir

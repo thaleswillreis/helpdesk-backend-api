@@ -1,5 +1,4 @@
 from app.core.config import settings
-import app.models
 
 from logging.config import fileConfig
 

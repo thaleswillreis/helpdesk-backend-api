@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Instalar dependências
+        run: uv sync --frozen
+
+      - name: Lint (ruff)
+        run: uv run ruff check .
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Criar .env de CI (valores descartáveis, só existem nesta execução)
+        run: |
+          cat > .env <<'EOF'
+          POSTGRES_USER=helpdesk
+          POSTGRES_PASSWORD=ci-postgres-password
+          POSTGRES_DB=helpdesk
+          POSTGRES_HOST=localhost
+          POSTGRES_PORT=5432
+          TEST_POSTGRES_DB=helpdesk_test
+          SECRET_KEY=ci-only-secret-key-not-used-anywhere-else
+          MINIO_ROOT_USER=helpdesk
+          MINIO_ROOT_PASSWORD=ci-minio-password
+          MINIO_BUCKET_NAME=helpdesk-attachments
+          MINIO_INTERNAL_ENDPOINT=localhost:9010
+          MINIO_PUBLIC_ENDPOINT=localhost:9010
+          MINIO_SECURE=false
+          REDIS_URL=redis://localhost:6380/0
+          EOF
+
+      - name: Subir infraestrutura (Postgres, MinIO, Redis)
+        run: docker compose up -d --wait db minio redis
+
+      - name: Criar bucket do MinIO
+        run: docker compose run --rm minio-init
+
+      - name: Instalar dependências
+        run: uv sync --frozen
+
+      - name: Validar migrations em banco limpo
+        run: uv run alembic upgrade head
+
+      - name: Testes
+        run: uv run pytest -v
+
+      - name: Logs da infraestrutura (somente em falha)
+        if: failure()
+        run: docker compose logs
+
+      - name: Derrubar infraestrutura
+        if: always()
+        run: docker compose down -v
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build da imagem da API
+        run: docker build -t helpdesk-api:ci .

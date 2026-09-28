@@ -1,6 +1,6 @@
 """Contratos de entrada/saída para relacionamentos entre ativos."""
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from app.models.enums import AssetRelationshipType
 

@@ -10,7 +10,6 @@ from app.models.enums import NivelAtendimento, StatusChamado
 from app.schemas.ticket import TicketRead
 from app.services.dashboard_service import get_dashboard_overview
 from app.services.kpi_service import get_kpi_trend, get_technician_kpis
-from app.services.sla_calculation_service import calculate_sla
 from app.services.ticket_overview_service import get_tickets_overview
 
 

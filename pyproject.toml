@@ -33,9 +33,20 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 88
 target-version = "py312"
+extend-exclude = ["app/migrations/versions"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B"]  # erros, pyflakes, imports, upgrades, bugbear
+# Apenas regras de erros reais: E9 (sintaxe/runtime), F (pyflakes: nomes
+# indefinidos, imports não usados, redefinições) e B (bugbear).
+select = ["E9", "F", "B"]
 
-[tool.ruff.format]
-quote-style = "double"
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI usa chamadas em valores default de parâmetros por design. O
+# require_role é uma fábrica de dependência (devolve uma função nova a cada
+# chamada, sem estado), então também é seguro tratá-la como imutável.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.File",
+    "app.core.dependencies.require_role",
+]

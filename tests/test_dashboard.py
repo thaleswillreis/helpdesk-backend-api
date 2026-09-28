@@ -145,7 +145,7 @@ def test_ticket_outside_date_range_is_excluded(
     session.add(db_ticket)
     session.commit()
 
-    response = client.get(
+    narrow = client.get(
         "/dashboard/overview",
         params={
             "date_from": (datetime.now(UTC) - timedelta(days=7)).isoformat(),
@@ -153,15 +153,15 @@ def test_ticket_outside_date_range_is_excluded(
         },
         headers=headers_admin,
     )
+    wide = client.get(
+        "/dashboard/overview",
+        params={
+            "date_from": (datetime.now(UTC) - timedelta(days=120)).isoformat(),
+            "date_to": datetime.now(UTC).isoformat(),
+        },
+        headers=headers_admin,
+    )
 
-    assert response.status_code == 200
-    # O chamado antigo (90 dias atrás) não deveria aparecer num filtro de 7 dias.
-    assert (
-        response.json()["total_tickets"] == 0
-        or all(
-            item["count"] == 0
-            for item in response.json()["volume_by_status"]
-            if item["dimension_value"] == "aberto"
-        )
-        or True
-    )  # ver nota abaixo
+    assert narrow.status_code == 200
+    assert narrow.json()["total_tickets"] == 0
+    assert wide.json()["total_tickets"] == 1

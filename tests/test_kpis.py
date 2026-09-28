@@ -5,7 +5,6 @@ from datetime import UTC, datetime, timedelta
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from app.models.ticket import Ticket
 
 
 def test_solicitante_cannot_access_trend(
