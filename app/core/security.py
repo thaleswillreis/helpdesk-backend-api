@@ -5,7 +5,7 @@ from enum import StrEnum
 
 import jwt
 from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
+from argon2.exceptions import InvalidHashError, VerificationError
 
 from app.core.config import settings
 
@@ -28,7 +28,8 @@ def verify_password(password: str, hashed_password: str) -> bool:
     """Verifica se a senha em texto plano corresponde ao hash armazenado."""
     try:
         return _password_hasher.verify(hashed_password, password)
-    except VerifyMismatchError:
+    except (VerificationError, InvalidHashError):
+        # InvalidHashError cobre contas sem senha utilizável (ex.: usuário sistema).
         return False
 
 
@@ -41,7 +42,9 @@ def _create_token(subject: str, token_type: TokenType, expires_delta: timedelta)
 def create_access_token(subject: str) -> str:
     """Cria um access token de curta duração para o usuário informado."""
     return _create_token(
-        subject, TokenType.ACCESS, timedelta(minutes=settings.access_token_expire_minutes)
+        subject,
+        TokenType.ACCESS,
+        timedelta(minutes=settings.access_token_expire_minutes),
     )
 
 

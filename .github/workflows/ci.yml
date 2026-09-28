@@ -49,22 +49,23 @@ jobs:
           TEST_POSTGRES_DB=helpdesk_test
           SECRET_KEY=ci-only-secret-key-not-used-anywhere-else
           MINIO_ROOT_USER=helpdesk
-          MINIO_ROOT_PASSWORD=ci-minio-password
+          MINIO_ROOT_PASSWORD=ci-storage-password
           MINIO_BUCKET_NAME=helpdesk-attachments
           MINIO_INTERNAL_ENDPOINT=localhost:9010
           MINIO_PUBLIC_ENDPOINT=localhost:9010
           MINIO_SECURE=false
+          MINIO_PUBLIC_SECURE=false
           REDIS_URL=redis://localhost:6380/0
           EOF
 
-      - name: Subir infraestrutura (Postgres, MinIO, Redis)
-        run: docker compose up -d --wait db minio redis
-
-      - name: Criar bucket do MinIO
-        run: docker compose run --rm minio-init
+      - name: Subir infraestrutura (Postgres, storage S3 e Redis)
+        run: docker compose up -d --wait db storage redis
 
       - name: Instalar dependências
         run: uv sync --frozen
+
+      - name: Criar bucket de anexos
+        run: uv run python -m scripts.create_bucket
 
       - name: Validar migrations em banco limpo
         run: uv run alembic upgrade head

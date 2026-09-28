@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     minio_internal_endpoint: str = "localhost:9010"
     minio_public_endpoint: str = "localhost:9010"
     minio_secure: bool = False
+    minio_public_secure: bool = False
 
     max_attachment_size_mb: int = 10
     allowed_attachment_extensions: set[str] = {
