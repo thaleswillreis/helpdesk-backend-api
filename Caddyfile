@@ -1,0 +1,15 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$API_DOMAIN} {
+	encode gzip
+	reverse_proxy api:8000
+}
+
+# Downloads de anexos: as URLs pré-assinadas apontam direto para o storage.
+# O Caddy repassa o cabeçalho Host original ao storage, e a assinatura da
+# URL depende dele.
+{$FILES_DOMAIN} {
+	reverse_proxy storage:9000
+}
