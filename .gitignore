@@ -11,3 +11,6 @@ build/
 
 # Ignore database files
 *.db
+
+backup/
+.env.prod.local
