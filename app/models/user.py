@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.models.enums import NivelAtendimento
+from app.models.enums import NivelAtendimento, pg_enum_column
 from app.models.role import Role
 
 
@@ -18,7 +18,8 @@ class User(SQLModel, table=True):
     is_active: bool = Field(default=True)
     is_vip: bool = Field(default=False)
     level: NivelAtendimento | None = Field(
-        default=None, description="Nível de atendimento do técnico (N1/N2/N3). Não se aplica a admin/solicitante."
+        default=None,
+        sa_column=pg_enum_column(NivelAtendimento, "nivelatendimento", nullable=True),
     )
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 

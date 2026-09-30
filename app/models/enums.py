@@ -1,5 +1,8 @@
 """Enums compartilhados do domínio de chamados (status e prioridade)."""
 
+from sqlalchemy import Column
+from sqlalchemy import Enum as SAEnum
+
 from enum import StrEnum
 
 
@@ -132,3 +135,20 @@ class AssetRelationshipType(StrEnum):
     CONECTADO_A = "conectado_a"
     ALIMENTA = "alimenta"
     MESMA_REDE_QUE = "mesma_rede_que"
+
+
+def pg_enum_column(enum_cls, name: str, **column_kwargs):
+    """Cria uma coluna Enum que persiste o .value do enum Python (não o .name).
+
+    Sem isso, o SQLAlchemy grava por padrão o nome do membro (ex.: "BAIXA"),
+    incompatível com os tipos enum do Postgres, criados manualmente nas
+    migrations com os valores em minúsculo (ex.: "baixa").
+    """
+    return Column(
+        SAEnum(
+            enum_cls,
+            values_callable=lambda cls: [e.value for e in cls],
+            name=name,
+        ),
+        **column_kwargs,
+    )

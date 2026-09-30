@@ -2,7 +2,7 @@
 
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.models.enums import PrioridadeChamado
+from app.models.enums import PrioridadeChamado, pg_enum_column
 from app.models.team import Team
 
 
@@ -12,7 +12,7 @@ class Category(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(unique=True, index=True, max_length=100)
     default_priority: PrioridadeChamado = Field(
-        description="Prioridade sugerida ao abrir um chamado nesta categoria."
+        sa_column=pg_enum_column(PrioridadeChamado, "prioridadechamado"),
     )
     default_team_id: int | None = Field(
         default=None,

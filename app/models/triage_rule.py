@@ -2,7 +2,7 @@
 
 from sqlmodel import Field, SQLModel
 
-from app.models.enums import NivelAtendimento, PrioridadeChamado
+from app.models.enums import NivelAtendimento, PrioridadeChamado, pg_enum_column
 
 
 class TriageRule(SQLModel, table=True):
@@ -24,6 +24,12 @@ class TriageRule(SQLModel, table=True):
     condition_keyword: str | None = Field(default=None, max_length=100)
     condition_outside_business_hours: bool = Field(default=False)
 
-    action_priority: PrioridadeChamado | None = Field(default=None)
+    action_priority: PrioridadeChamado | None = Field(
+        default=None,
+        sa_column=pg_enum_column(PrioridadeChamado, "prioridadechamado", nullable=True),
+    )
     action_team_id: int | None = Field(default=None, foreign_key="team.id")
-    action_level: NivelAtendimento | None = Field(default=None)
+    action_level: NivelAtendimento | None = Field(
+        default=None,
+        sa_column=pg_enum_column(NivelAtendimento, "nivelatendimento", nullable=True),
+    )

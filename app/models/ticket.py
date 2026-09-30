@@ -8,7 +8,12 @@ from sqlalchemy import Enum as SAEnum
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.category import Category
-from app.models.enums import NivelAtendimento, PrioridadeChamado, StatusChamado
+from app.models.enums import (
+    NivelAtendimento,
+    PrioridadeChamado,
+    StatusChamado,
+    pg_enum_column,
+)
 from app.models.subcategory import Subcategory
 from app.models.team import Team
 from app.models.user import User
@@ -32,7 +37,9 @@ class Ticket(SQLModel, table=True):
             index=True,
         ),
     )
-    priority: PrioridadeChamado = Field(index=True)
+    priority: PrioridadeChamado = Field(
+        sa_column=pg_enum_column(PrioridadeChamado, "prioridadechamado", index=True),
+    )
 
     category_id: int = Field(foreign_key="category.id")
     category: Category = Relationship()
@@ -53,11 +60,13 @@ class Ticket(SQLModel, table=True):
     team_id: int | None = Field(default=None, foreign_key="team.id")
     team: Team | None = Relationship()
 
-    catalog_item_id: int | None = Field(default=None, foreign_key="servicecatalogitem.id")
+    catalog_item_id: int | None = Field(
+        default=None, foreign_key="servicecatalogitem.id"
+    )
 
     current_level: NivelAtendimento = Field(
         default=NivelAtendimento.N1,
-        description="Fila de nível de atendimento em que o chamado está atualmente.",
+        sa_column=pg_enum_column(NivelAtendimento, "nivelatendimento"),
     )
 
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

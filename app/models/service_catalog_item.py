@@ -3,7 +3,7 @@
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.category import Category
-from app.models.enums import ApprovalTimeoutAction
+from app.models.enums import ApprovalTimeoutAction, pg_enum_column
 from app.models.subcategory import Subcategory
 
 
@@ -30,4 +30,7 @@ class ServiceCatalogItem(SQLModel, table=True):
         default=None,
         description="Horas até a decisão automática ser aplicada, se ninguém decidir antes.",
     )
-    approval_timeout_action: ApprovalTimeoutAction | None = Field(default=None)
+    approval_timeout_action: ApprovalTimeoutAction | None = Field(
+        default=None,
+        sa_column=pg_enum_column(ApprovalTimeoutAction, "approvaltimeoutaction", nullable=True),
+    )

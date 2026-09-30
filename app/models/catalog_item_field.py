@@ -4,7 +4,7 @@ from sqlalchemy import Column, String
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlmodel import Field, SQLModel
 
-from app.models.enums import CatalogFieldType
+from app.models.enums import CatalogFieldType, pg_enum_column
 
 
 class CatalogItemField(SQLModel, table=True):
@@ -14,7 +14,9 @@ class CatalogItemField(SQLModel, table=True):
     catalog_item_id: int = Field(foreign_key="servicecatalogitem.id", index=True)
 
     label: str = Field(max_length=150)
-    field_type: CatalogFieldType
+    field_type: CatalogFieldType = Field(
+        sa_column=pg_enum_column(CatalogFieldType, "catalogfieldtype"),
+    )
     is_required: bool = Field(default=True)
     options: list[str] | None = Field(default=None, sa_column=Column(ARRAY(String)))
     display_order: int = Field(default=0)

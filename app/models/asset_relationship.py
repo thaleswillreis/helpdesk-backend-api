@@ -2,7 +2,7 @@
 
 from sqlmodel import Field, SQLModel
 
-from app.models.enums import AssetRelationshipType
+from app.models.enums import AssetRelationshipType, pg_enum_column
 
 
 class AssetRelationship(SQLModel, table=True):
@@ -11,4 +11,6 @@ class AssetRelationship(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     from_asset_id: int = Field(foreign_key="asset.id", index=True)
     to_asset_id: int = Field(foreign_key="asset.id", index=True)
-    relationship_type: AssetRelationshipType
+    relationship_type: AssetRelationshipType = Field(
+        sa_column=pg_enum_column(AssetRelationshipType, "assetrelationshiptype"),
+    )

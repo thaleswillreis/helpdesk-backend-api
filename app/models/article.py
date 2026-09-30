@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.category import Category
-from app.models.enums import ArticleStatus
+from app.models.enums import ArticleStatus, pg_enum_column
 from app.models.subcategory import Subcategory
 from app.models.user import User
 
@@ -20,7 +20,10 @@ class Article(SQLModel, table=True):
     content: str
     tags: list[str] = Field(default_factory=list, sa_column=Column(ARRAY(String)))
 
-    status: ArticleStatus = Field(default=ArticleStatus.DRAFT, index=True)
+    status: ArticleStatus = Field(
+        default=ArticleStatus.DRAFT,
+        sa_column=pg_enum_column(ArticleStatus, "articlestatus", index=True),
+    )
 
     category_id: int = Field(foreign_key="category.id")
     category: Category = Relationship()
